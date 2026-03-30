@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sony LDT Gamma Curve Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,300;9..144,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff; --bg2: #f7f6f3; --bg3: #f0efec; --bg4: #e8e7e3;
+    --bg5: #dddcd8; --bg6: #d2d1cd;
+    --text: #1a1a1a; --text2: #555550; --text3: #88877e; --text4: #b0afa8;
+    --accent: #9a7b2e; --accent-bg: rgba(154,123,46,0.08); --accent-border: rgba(154,123,46,0.25);
+    --red: #c43030; --green: #1a7a42; --blue: #2060b0;
+    --red-light: rgba(196,48,48,0.08); --green-light: rgba(26,122,66,0.08); --blue-light: rgba(32,96,176,0.08);
+    --cyan: #0e7a72;
+    --border: rgba(0,0,0,0.07); --border2: rgba(0,0,0,0.1); --border3: rgba(0,0,0,0.18);
+    --font: 'DM Sans', -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', 'SF Mono', monospace;
+    --display: 'Fraunces', Georgia, serif;
+    --canvas-bg: #fafaf8;
+    --grid-line: rgba(0,0,0,0.05);
+    --grid-line2: rgba(0,0,0,0.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; overflow: hidden; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; font-size: 14px; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--bg5); border-radius: 3px; }
+
+  .app { display: flex; flex-direction: column; height: 100vh; }
+  .header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; flex-shrink: 0; background: var(--bg); }
+  .header-title { font-family: var(--display); font-size: 22px; font-weight: 300; color: var(--text); }
+  .header-title em { font-style: normal; color: var(--accent); }
+  .header-sub { font-size: 12px; color: var(--text3); font-family: var(--mono); margin-top: 2px; }
+  .header-actions { display: flex; gap: 8px; align-items: center; }
+
+  .main { display: flex; flex: 1; overflow: hidden; }
+  .canvas-area { flex: 1; display: flex; flex-direction: column; padding: 14px; gap: 10px; overflow: hidden; }
+  .sidebar { width: 320px; flex-shrink: 0; border-left: 1px solid var(--border); padding: 14px; overflow-y: auto; background: var(--bg2); }
+
+  .btn { padding: 7px 14px; border-radius: 7px; border: 1px solid var(--border2); background: var(--bg); color: var(--text2); font-size: 13px; font-family: var(--font); cursor: pointer; transition: all 0.15s; white-space: nowrap; line-height: 1.4; }
+  .btn:hover { background: var(--bg3); color: var(--text); border-color: var(--border3); }
+  .btn-accent { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-border); }
+  .btn-accent:hover { background: rgba(154,123,46,0.14); }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-active { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-border); }
+  .btn-danger { color: var(--red); border-color: rgba(196,48,48,0.2); }
+  .btn-danger:hover { background: rgba(196,48,48,0.06); }
+  .ch-btn { padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--text3); font-size: 13px; font-family: var(--mono); font-weight: 500; cursor: pointer; transition: all 0.15s; }
+
+  .toolbar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .toolbar-sep { width: 1px; height: 20px; background: var(--border2); margin: 0 3px; }
+
+  .canvas-wrap { flex: 1; position: relative; background: var(--canvas-bg); border-radius: 10px; border: 1px solid var(--border2); overflow: hidden; min-height: 0; }
+  .canvas-wrap canvas { display: block; width: 100%; height: 100%; }
+  .canvas-overlay { position: absolute; padding: 5px 10px; border-radius: 6px; background: rgba(255,255,255,0.92); backdrop-filter: blur(8px); border: 1px solid var(--border2); font-family: var(--mono); font-size: 12px; color: var(--text2); pointer-events: none; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+
+  .sb-section { margin-bottom: 18px; }
+  .sb-label { font-size: 11px; font-family: var(--mono); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .preset-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; }
+  .preset-grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+  input[type=range] { -webkit-appearance: none; width: 100%; height: 5px; background: var(--bg4); border-radius: 3px; outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid var(--bg); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
+
+  .info-box { border-radius: 8px; padding: 12px; font-size: 12px; line-height: 1.65; margin-bottom: 12px; }
+  .info-box h4 { font-size: 13px; font-weight: 600; margin-bottom: 5px; }
+  .info-box ol { padding-left: 18px; margin: 0; }
+
+  .text-input { background: var(--bg); border: 1px solid var(--border2); color: var(--text); padding: 6px 10px; border-radius: 6px; font-family: var(--font); font-size: 13px; outline: none; width: 170px; }
+  .text-input:focus { border-color: var(--accent-border); box-shadow: 0 0 0 2px rgba(154,123,46,0.1); }
+
+  .notif { position: fixed; top: 14px; right: 14px; z-index: 9999; padding: 9px 20px; border-radius: 8px; background: rgba(255,255,255,0.95); border: 1px solid var(--accent-border); color: var(--accent); font-size: 13px; backdrop-filter: blur(12px); animation: notifIn 0.2s ease; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+  @keyframes notifIn { from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);} }
+
+  .cp-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  .cp-table th { padding: 6px 6px; text-align: center; font-weight: 500; color: var(--text3); border-bottom: 1px solid var(--border2); font-size: 11px; }
+  .cp-table th:first-child { text-align: left; }
+  .cp-table td { padding: 4px 4px; text-align: center; border-bottom: 1px solid var(--border); }
+  .cp-table td:first-child { text-align: left; color: var(--text3); }
+  .cp-table tr:hover td { background: rgba(0,0,0,0.02); }
+  .cp-input { background: var(--bg); border: 1px solid var(--border2); color: var(--text); padding: 4px 5px; border-radius: 4px; font-family: var(--mono); font-size: 12px; width: 56px; outline: none; text-align: center; }
+  .cp-input:focus { border-color: var(--accent-border); box-shadow: 0 0 0 2px rgba(154,123,46,0.08); }
+
+  .mode-btn { padding: 5px 14px; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--text3); font-size: 13px; font-family: var(--mono); font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .mode-btn.active { background: var(--accent-bg); color: var(--accent); border-color: var(--accent-border); }
+
+  /* Save-as modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.25); z-index: 9998; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.15s ease; }
+  .modal { background: var(--bg); border-radius: 12px; padding: 28px; width: 380px; box-shadow: 0 8px 40px rgba(0,0,0,0.12); border: 1px solid var(--border2); }
+  .modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+  .modal-input { width: 100%; background: var(--bg2); border: 1px solid var(--border2); color: var(--text); padding: 10px 12px; border-radius: 8px; font-family: var(--mono); font-size: 14px; outline: none; margin-bottom: 16px; }
+  .modal-input:focus { border-color: var(--accent-border); box-shadow: 0 0 0 3px rgba(154,123,46,0.1); }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+  @keyframes fadeIn { from{opacity:0;}to{opacity:1;} }
+
+  @media (max-width: 900px) {
+    .main { flex-direction: column; }
+    .sidebar { width: 100%; max-height: 40vh; border-left: none; border-top: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script>
+const {useState,useRef,useEffect,useCallback,createElement:h}=React;
+const MAX=1023,EPC=1024,HDR_SZ=512;
+
+const HDR_TPL=new Uint8Array(HDR_SZ);
+(()=>{const e=new TextEncoder(),w=(o,s)=>HDR_TPL.set(e.encode(s),o);
+w(0,"LDT");w(8,"0200");w(16,"VPL-xWxxxxES");w(32,"0");w(48,"NETWORK");w(56,"0");w(64,"1");w(72,"ALL");w(80,"0");})();
+
+// ─── Cubic Spline ───
+function cubicSpline(pts){
+  const n=pts.length;
+  if(n<2)return Array(EPC).fill(pts[0]?.y||0);
+  if(n===2){const out=new Array(EPC);for(let i=0;i<EPC;i++){const t=(i-pts[0].x)/(pts[1].x-pts[0].x);out[i]=Math.round(Math.max(0,Math.min(MAX,pts[0].y+t*(pts[1].y-pts[0].y))));}return out;}
+  const xs=pts.map(p=>p.x),ys=pts.map(p=>p.y);
+  const hh=[],alpha=[],l=[],mu=[],z=[];
+  for(let i=0;i<n-1;i++)hh[i]=xs[i+1]-xs[i];
+  for(let i=1;i<n-1;i++)alpha[i]=(3/hh[i])*(ys[i+1]-ys[i])-(3/hh[i-1])*(ys[i]-ys[i-1]);
+  l[0]=1;mu[0]=0;z[0]=0;
+  for(let i=1;i<n-1;i++){l[i]=2*(xs[i+1]-xs[i-1])-hh[i-1]*mu[i-1];mu[i]=hh[i]/l[i];z[i]=(alpha[i]-hh[i-1]*z[i-1])/l[i];}
+  l[n-1]=1;z[n-1]=0;
+  const b=new Array(n),c=new Array(n),d=new Array(n);c[n-1]=0;
+  for(let j=n-2;j>=0;j--){c[j]=z[j]-mu[j]*c[j+1];b[j]=(ys[j+1]-ys[j])/hh[j]-hh[j]*(c[j+1]+2*c[j])/3;d[j]=(c[j+1]-c[j])/(3*hh[j]);}
+  const out=new Array(EPC);
+  for(let i=0;i<EPC;i++){
+    let seg=n-2;for(let s=0;s<n-1;s++){if(i<=xs[s+1]){seg=s;break;}}
+    const dx=i-xs[seg];out[i]=Math.round(Math.max(0,Math.min(MAX,ys[seg]+b[seg]*dx+c[seg]*dx*dx+d[seg]*dx*dx*dx)));
+  }
+  return out;
+}
+
+function getControlPointPositions(mode){
+  if(mode===4){return[0,Math.round(MAX/3),Math.round(2*MAX/3),MAX];}
+  if(mode===10){const p=[0];for(let i=1;i<=8;i++)p.push(Math.round(i*MAX/9));p.push(MAX);return p;}
+  const p=[];for(let i=0;i<=20;i++)p.push(Math.round(i*MAX/20));return p;
+}
+function curveToControlPoints(curve,positions){return positions.map(x=>({x,y:curve[Math.min(x,MAX)]}));}
+
+// ─── Generators ───
+const M1=0.1593017578125,M2=78.84375,C1=0.8359375,C2=18.8515625,C3=18.6875;
+function pqEOTF(N){const Np=Math.pow(N,1/M2),num=Math.max(Np-C1,0);return 10000*Math.pow(num/(C2-C3*Np),1/M1);}
+function genPQ(nits){const c=new Array(EPC);for(let i=0;i<EPC;i++){const lin=pqEOTF(i/MAX);let m;if(lin<=nits)m=lin/nits;else{const ov=(lin-nits)/(10000-nits);m=Math.min(1+0.3*Math.pow(ov,0.5),1);}c[i]=Math.round(Math.pow(Math.max(0,Math.min(1,m)),1/2.2)*MAX);}return c;}
+function genHLG(sg){const a=0.17883277,b=1-4*a,cc=0.5-a*Math.log(4*a),c=new Array(EPC);for(let i=0;i<EPC;i++){const E=i/MAX;let Eo=E<=0.5?E*E/3:(Math.exp((E-cc)/a)+b)/12;c[i]=Math.round(Math.pow(Math.max(0,Math.min(1,Math.pow(Eo,sg))),1/2.2)*MAX);}return c;}
+function genGamma(g){const c=new Array(EPC);for(let i=0;i<EPC;i++)c[i]=Math.round(Math.pow(i/MAX,g)*MAX);return c;}
+function genLinear(){return Array.from({length:EPC},(_,i)=>i);}
+function genSCurve(k){const c=new Array(EPC);for(let i=0;i<EPC;i++)c[i]=Math.round(1/(1+Math.exp(-k*6*(i/MAX-0.5)))*MAX);return c;}
+
+// ─── LDT I/O ───
+function parseLDT(buf){const v=new DataView(buf),ch=[[],[],[]];for(let c=0;c<3;c++){const d=[];for(let i=0;i<EPC;i++)d.push(v.getUint16(HDR_SZ+(c*EPC+i)*2,true));ch[c]=[...d].reverse();}return ch;}
+function buildLDT(ch){const buf=new ArrayBuffer(HDR_SZ+3*EPC*2),a=new Uint8Array(buf);a.set(HDR_TPL,0);const v=new DataView(buf);for(let c=0;c<3;c++){const d=[...ch[c]].reverse();for(let i=0;i<EPC;i++)v.setUint16(HDR_SZ+(c*EPC+i)*2,Math.max(0,Math.min(MAX,d[i])),true);}return buf;}
+
+// ─── Canvas Drawing ───
+function drawCanvas(canvas,channels,activeCh,zoom,pan,controlPts,activePointIdx,mode,fmtFn){
+  if(!fmtFn)fmtFn=v=>v;
+  const ctx=canvas.getContext("2d");
+  const dpr=window.devicePixelRatio||1;
+  const W=canvas.width,H=canvas.height,w=W/dpr,hh=H/dpr;
+  ctx.clearRect(0,0,W,H);ctx.save();ctx.scale(dpr,dpr);
+
+  const p={t:18,r:18,b:38,l:50};
+  const gw=w-p.l-p.r,gh=hh-p.t-p.b;
+  const vx0=pan.x,vx1=pan.x+MAX/zoom,vy0=pan.y,vy1=pan.y+MAX/zoom;
+  const toX=v=>p.l+((v-vx0)/(vx1-vx0))*gw;
+  const toY=v=>p.t+gh-((v-vy0)/(vy1-vy0))*gh;
+
+  // BG
+  ctx.fillStyle="#fafaf8";ctx.fillRect(0,0,w,hh);
+
+  // Grid
+  const gs=zoom>3?64:zoom>1.5?128:256;
+  ctx.strokeStyle="rgba(0,0,0,0.04)";ctx.lineWidth=0.5;
+  for(let v=0;v<=MAX;v+=gs){
+    const x=toX(v),y=toY(v);
+    if(x>=p.l&&x<=w-p.r){ctx.beginPath();ctx.moveTo(x,p.t);ctx.lineTo(x,p.t+gh);ctx.stroke();}
+    if(y>=p.t&&y<=p.t+gh){ctx.beginPath();ctx.moveTo(p.l,y);ctx.lineTo(p.l+gw,y);ctx.stroke();}
+  }
+  // Darker grid at 256 intervals
+  ctx.strokeStyle="rgba(0,0,0,0.08)";
+  for(let v=0;v<=MAX;v+=256){
+    const x=toX(v),y=toY(v);
+    if(x>=p.l&&x<=w-p.r){ctx.beginPath();ctx.moveTo(x,p.t);ctx.lineTo(x,p.t+gh);ctx.stroke();}
+    if(y>=p.t&&y<=p.t+gh){ctx.beginPath();ctx.moveTo(p.l,y);ctx.lineTo(p.l+gw,y);ctx.stroke();}
+  }
+
+  // Axis labels
+  ctx.fillStyle="rgba(0,0,0,0.3)";ctx.font="10px 'JetBrains Mono',monospace";
+  ctx.textAlign="center";
+  for(let v=0;v<=MAX;v+=gs){const x=toX(v);if(x>=p.l&&x<=w-p.r)ctx.fillText(fmtFn(v),x,p.t+gh+16);}
+  ctx.textAlign="right";
+  for(let v=0;v<=MAX;v+=gs){const y=toY(v);if(y>=p.t&&y<=p.t+gh)ctx.fillText(fmtFn(v),p.l-7,y+3);}
+
+  // Linear ref
+  ctx.strokeStyle="rgba(0,0,0,0.08)";ctx.lineWidth=1;ctx.setLineDash([4,4]);
+  ctx.beginPath();ctx.moveTo(toX(0),toY(0));ctx.lineTo(toX(MAX),toY(MAX));ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Clip
+  ctx.save();ctx.beginPath();ctx.rect(p.l,p.t,gw,gh);ctx.clip();
+
+  // Curves
+  const cols=["#c43030","#1a7a42","#2060b0"];
+  const lightCols=["rgba(196,48,48,0.12)","rgba(26,122,66,0.12)","rgba(32,96,176,0.12)"];
+  const order=[0,1,2].sort((a,b)=>a===activeCh?1:-1);
+  for(const ch of order){
+    const d=channels[ch],isA=ch===activeCh;
+    // Fill under active curve
+    if(isA){
+      ctx.beginPath();ctx.moveTo(toX(0),toY(0));
+      for(let i=0;i<EPC;i+=Math.max(1,Math.floor(1/zoom)))ctx.lineTo(toX(i),toY(d[i]));
+      ctx.lineTo(toX(MAX),toY(0));ctx.closePath();
+      ctx.fillStyle=lightCols[ch];ctx.fill();
+    }
+    ctx.strokeStyle=cols[ch];ctx.globalAlpha=isA?1:0.25;ctx.lineWidth=isA?2.5:1;
+    ctx.beginPath();
+    for(let i=0;i<EPC;i+=Math.max(1,Math.floor(1/zoom))){
+      if(i===0)ctx.moveTo(toX(i),toY(d[i]));else ctx.lineTo(toX(i),toY(d[i]));
+    }
+    ctx.stroke();
+  }
+  ctx.globalAlpha=1;
+
+  // Control points
+  if(controlPts&&mode!=="free"){
+    const col=cols[activeCh];
+    for(let i=0;i<controlPts.length;i++){
+      const px=toX(controlPts[i].x),py=toY(controlPts[i].y);
+      const isAct=i===activePointIdx;
+      const r=isAct?8:5;
+      if(isAct){ctx.beginPath();ctx.arc(px,py,14,0,Math.PI*2);const gr=ctx.createRadialGradient(px,py,3,px,py,14);gr.addColorStop(0,col+"30");gr.addColorStop(1,"transparent");ctx.fillStyle=gr;ctx.fill();}
+      ctx.beginPath();ctx.arc(px,py,r,0,Math.PI*2);
+      ctx.fillStyle=isAct?col:"#fafaf8";ctx.fill();
+      ctx.strokeStyle=col;ctx.lineWidth=isAct?2.5:1.5;ctx.stroke();
+      // Value label
+      if(zoom>=1.5||controlPts.length<=10){
+        ctx.fillStyle="rgba(0,0,0,0.45)";ctx.font="9px 'JetBrains Mono',monospace";ctx.textAlign="center";
+        ctx.fillText(fmtFn(controlPts[i].y),px,py-r-5);
+      }
+    }
+  }
+  ctx.restore();ctx.restore();
+}
+
+// ─── Undo/Redo History ───
+function useHistory(initial){
+  const [stack,setStack]=useState([initial.map(c=>c.slice())]);
+  const [idx,setIdx]=useState(0);
+  const push=useCallback((ch)=>{
+    setStack(s=>{const ns=s.slice(0,idx+1);ns.push(ch.map(c=>c.slice()));if(ns.length>50)ns.shift();return ns;});
+    setIdx(i=>Math.min(i+1,50));
+  },[idx]);
+  const undo=useCallback(()=>{if(idx>0){setIdx(i=>i-1);return stack[idx-1].map(c=>c.slice());}return null;},[idx,stack]);
+  const redo=useCallback(()=>{if(idx<stack.length-1){setIdx(i=>i+1);return stack[idx+1].map(c=>c.slice());}return null;},[idx,stack]);
+  const canUndo=idx>0, canRedo=idx<stack.length-1;
+  return {push,undo,redo,canUndo,canRedo};
+}
+
+// ─── App ───
+function App(){
+  const initCurve=genGamma(2.2);
+  const [channels,setChannels]=useState(()=>[initCurve.slice(),initCurve.slice(),initCurve.slice()]);
+  const [activeCh,setActiveCh]=useState(0);
+  const [linked,setLinked]=useState(true);
+  const [zoom,setZoom]=useState(1);
+  const [pan,setPan]=useState({x:0,y:0});
+  const [hover,setHover]=useState(null);
+  const [mode,setMode]=useState(10);
+  const [controlPts,setControlPts]=useState(()=>curveToControlPoints(initCurve,getControlPointPositions(10)));
+  const [activePointIdx,setActivePointIdx]=useState(-1);
+  const [draggingPt,setDraggingPt]=useState(false);
+  const [panning,setPanning]=useState(false);
+  const [panStart,setPanStart]=useState(null);
+  const [pqNits,setPqNits]=useState(200);
+  const [notif,setNotif]=useState(null);
+  const [showSaveAs,setShowSaveAs]=useState(false);
+  const [saveFileName,setSaveFileName]=useState("custom_gamma.ldt");
+  const [freeDragging,setFreeDragging]=useState(false);
+  const [displayFmt,setDisplayFmt]=useState("10bit"); // "8bit", "10bit", "pct"
+  const lastFreePt=useRef(null);
+  const lastCommit=useRef(null);
+
+  // Format a 10-bit value for display
+  const fmtVal=(v)=>{
+    if(displayFmt==="8bit") return Math.round(v/1023*255);
+    if(displayFmt==="pct") return (v/1023*100).toFixed(1)+"%";
+    return v;
+  };
+  // Parse user input back to 10-bit
+  const parseVal=(s)=>{
+    if(displayFmt==="8bit") return Math.round(parseFloat(s)/255*1023);
+    if(displayFmt==="pct") return Math.round(parseFloat(s)/100*1023);
+    return parseInt(s);
+  };
+  // Max value for input fields
+  const fmtMax=()=>displayFmt==="8bit"?255:displayFmt==="pct"?100:1023;
+  const fmtStep=()=>displayFmt==="pct"?0.1:1;
+
+  const canvasRef=useRef(null);
+  const fileRef=useRef(null);
+
+  const history=useHistory([initCurve.slice(),initCurve.slice(),initCurve.slice()]);
+
+  const notify=m=>{setNotif(m);setTimeout(()=>setNotif(null),2500);};
+
+  const commitHistory=(ch)=>{history.push(ch);};
+
+  const doUndo=()=>{const prev=history.undo();if(prev){setChannels(prev);if(mode!=="free"){setControlPts(curveToControlPoints(prev[activeCh],getControlPointPositions(mode)));}notify("Undo");}};
+  const doRedo=()=>{const next=history.redo();if(next){setChannels(next);if(mode!=="free"){setControlPts(curveToControlPoints(next[activeCh],getControlPointPositions(mode)));}notify("Redo");}};
+  const doReset=()=>{
+    const lin=genGamma(2.2);
+    const ch=[lin.slice(),lin.slice(),lin.slice()];
+    setChannels(ch);commitHistory(ch);
+    if(mode!=="free")setControlPts(curveToControlPoints(lin,getControlPointPositions(mode)));
+    notify("Reset to γ 2.2");
+  };
+
+  const rebuildFromPts=useCallback((pts)=>{
+    const curve=cubicSpline(pts);
+    let nc;
+    if(linked)nc=[curve.slice(),curve.slice(),curve.slice()];
+    else{nc=channels.map(c=>c.slice());nc[activeCh]=curve;}
+    setChannels(nc);
+    return nc;
+  },[linked,channels,activeCh]);
+
+  const switchMode=(newMode)=>{
+    setMode(newMode);if(newMode==="free")return;
+    const positions=getControlPointPositions(newMode);
+    setControlPts(curveToControlPoints(channels[activeCh],positions));
+    setActivePointIdx(-1);
+  };
+
+  const applyPreset=(fn)=>{
+    const curve=fn();
+    let nc;
+    if(linked)nc=[curve.slice(),curve.slice(),curve.slice()];
+    else{nc=channels.map(c=>c.slice());nc[activeCh]=curve;}
+    setChannels(nc);commitHistory(nc);
+    if(mode!=="free")setControlPts(curveToControlPoints(curve,getControlPointPositions(mode)));
+  };
+
+  // Canvas resize
+  useEffect(()=>{
+    const c=canvasRef.current;if(!c)return;
+    const ro=new ResizeObserver(()=>{
+      const dpr=window.devicePixelRatio||1,r=c.getBoundingClientRect();
+      c.width=r.width*dpr;c.height=r.height*dpr;
+      drawCanvas(c,channels,activeCh,zoom,pan,mode!=="free"?controlPts:null,activePointIdx,mode,fmtVal);
+    });
+    ro.observe(c.parentElement);return()=>ro.disconnect();
+  },[]);
+
+  useEffect(()=>{
+    const c=canvasRef.current;if(!c)return;
+    drawCanvas(c,channels,activeCh,zoom,pan,mode!=="free"?controlPts:null,activePointIdx,mode,fmtVal);
+  },[channels,activeCh,zoom,pan,controlPts,activePointIdx,mode,displayFmt]);
+
+  // Keyboard shortcuts
+  useEffect(()=>{
+    const handler=e=>{
+      if(e.target.tagName==="INPUT")return;
+      if((e.metaKey||e.ctrlKey)&&e.key==="z"&&!e.shiftKey){e.preventDefault();doUndo();}
+      if((e.metaKey||e.ctrlKey)&&e.key==="z"&&e.shiftKey){e.preventDefault();doRedo();}
+      if((e.metaKey||e.ctrlKey)&&e.key==="s"){e.preventDefault();setShowSaveAs(true);}
+    };
+    window.addEventListener("keydown",handler);return()=>window.removeEventListener("keydown",handler);
+  },[doUndo,doRedo]);
+
+  const c2v=useCallback(e=>{
+    const c=canvasRef.current,r=c.getBoundingClientRect();
+    const w=r.width,hh=r.height;
+    const p_={t:18,r:18,b:38,l:50},gw=w-p_.l-p_.r,gh=hh-p_.t-p_.b;
+    const mx=e.clientX-r.left,my=e.clientY-r.top;
+    const vx0=pan.x,vx1=pan.x+MAX/zoom,vy0=pan.y,vy1=pan.y+MAX/zoom;
+    return{
+      input:Math.max(0,Math.min(MAX,Math.round(vx0+((mx-p_.l)/gw)*(vx1-vx0)))),
+      output:Math.max(0,Math.min(MAX,Math.round(vy1-((my-p_.t)/gh)*(vy1-vy0)))),
+      px:mx,py:my
+    };
+  },[zoom,pan]);
+
+  const findNearestPt=useCallback((mx,my)=>{
+    if(mode==="free"||!controlPts.length)return-1;
+    const c=canvasRef.current,r=c.getBoundingClientRect();
+    const w=r.width,hh=r.height;
+    const p_={t:18,r:18,b:38,l:50},gw=w-p_.l-p_.r,gh=hh-p_.t-p_.b;
+    const vx0=pan.x,vx1=pan.x+MAX/zoom,vy0=pan.y,vy1=pan.y+MAX/zoom;
+    const toX=v=>p_.l+((v-vx0)/(vx1-vx0))*gw;
+    const toY=v=>p_.t+gh-((v-vy0)/(vy1-vy0))*gh;
+    let best=-1,bestD=Infinity;
+    for(let i=0;i<controlPts.length;i++){const px=toX(controlPts[i].x),py=toY(controlPts[i].y);const d=Math.sqrt((mx-px)**2+(my-py)**2);if(d<bestD){bestD=d;best=i;}}
+    return bestD<22?best:-1;
+  },[controlPts,mode,zoom,pan]);
+
+  const freeInterp=(from,to,ch,nc)=>{
+    const x0=Math.min(from.input,to.input),x1=Math.max(from.input,to.input);
+    const y0=from.input<to.input?from.output:to.output;
+    const y1=from.input<to.input?to.output:from.output;
+    for(let x=x0;x<=x1;x++){const t=x1===x0?0:(x-x0)/(x1-x0);const v=Math.max(0,Math.min(MAX,Math.round(y0+t*(y1-y0))));if(linked){nc[0][x]=v;nc[1][x]=v;nc[2][x]=v;}else nc[ch][x]=v;}
+  };
+
+  const onDown=e=>{
+    if(e.button!==0)return;
+    const val=c2v(e);
+
+    // Middle-click or Alt+click to pan
+    if(e.altKey||e.button===1){setPanning(true);setPanStart({mx:e.clientX,my:e.clientY,px:pan.x,py:pan.y});return;}
+
+    if(mode==="free"){
+      setFreeDragging(true);lastFreePt.current=val;lastCommit.current=null;
+      const nc=channels.map(c=>c.slice());
+      if(linked){nc[0][val.input]=val.output;nc[1][val.input]=val.output;nc[2][val.input]=val.output;}
+      else nc[activeCh][val.input]=val.output;
+      setChannels(nc);return;
+    }
+
+    const idx=findNearestPt(val.px,val.py);
+    if(idx>=0){setActivePointIdx(idx);setDraggingPt(true);lastCommit.current=null;}
+    else if(zoom>1){
+      // If no point hit and zoomed, start panning
+      setPanning(true);setPanStart({mx:e.clientX,my:e.clientY,px:pan.x,py:pan.y});
+    }
+  };
+
+  const onMove=e=>{
+    const val=c2v(e);setHover(val);
+
+    // Panning
+    if(panning&&panStart){
+      const c=canvasRef.current,r=c.getBoundingClientRect();
+      const p_={t:18,r:18,b:38,l:50},gw=r.width-p_.l-p_.r,gh=r.height-p_.t-p_.b;
+      const range=MAX/zoom;
+      const dx=-(e.clientX-panStart.mx)/gw*range;
+      const dy=(e.clientY-panStart.my)/gh*range;
+      const nx=Math.max(0,Math.min(MAX-range,panStart.px+dx));
+      const ny=Math.max(0,Math.min(MAX-range,panStart.py+dy));
+      setPan({x:nx,y:ny});return;
+    }
+
+    if(mode==="free"&&freeDragging){
+      const nc=channels.map(c=>c.slice());
+      if(lastFreePt.current)freeInterp(lastFreePt.current,val,activeCh,nc);
+      lastFreePt.current=val;setChannels(nc);return;
+    }
+
+    if(draggingPt&&activePointIdx>=0){
+      const newPts=controlPts.map((p,i)=>{
+        if(i!==activePointIdx)return p;
+        // All points can move freely, clamped between neighbors
+        const isFirst=i===0,isLast=i===controlPts.length-1;
+        let minX=0,maxX=MAX;
+        if(!isFirst)minX=controlPts[i-1].x+1;
+        if(!isLast)maxX=controlPts[i+1].x-1;
+        const newX=Math.max(minX,Math.min(maxX,val.input));
+        return{x:newX,y:Math.max(0,Math.min(MAX,val.output))};
+      });
+      setControlPts(newPts);rebuildFromPts(newPts);
+    }else if(mode!=="free"){
+      const idx=findNearestPt(val.px,val.py);
+      if(idx!==activePointIdx&&!draggingPt)setActivePointIdx(idx);
+    }
+  };
+
+  const onUp=()=>{
+    if(draggingPt||freeDragging){commitHistory(channels);}
+    setDraggingPt(false);setFreeDragging(false);setPanning(false);setPanStart(null);lastFreePt.current=null;
+  };
+
+  const onWheel=e=>{e.preventDefault();
+    const val=c2v(e);
+    const oldZoom=zoom;
+    const newZoom=Math.max(1,Math.min(16,zoom*(e.deltaY<0?1.15:0.87)));
+    // Zoom toward mouse position
+    const range=MAX/oldZoom;const newRange=MAX/newZoom;
+    const frac=(val.input-pan.x)/range;
+    const fracY=(val.output-pan.y)/range;
+    const nx=Math.max(0,Math.min(MAX-newRange,val.input-frac*newRange));
+    const ny=Math.max(0,Math.min(MAX-newRange,val.output-fracY*newRange));
+    setZoom(newZoom);
+    if(newZoom>1)setPan({x:nx,y:ny});else setPan({x:0,y:0});
+  };
+
+  const updatePtValue=(idx,newY)=>{const newPts=controlPts.map((p,i)=>i===idx?{x:p.x,y:Math.max(0,Math.min(MAX,newY))}:p);setControlPts(newPts);const nc=rebuildFromPts(newPts);commitHistory(nc);};
+  const updatePtX=(idx,newX)=>{
+    const n=controlPts.length;
+    let minX=0,maxX=MAX;
+    if(idx>0)minX=controlPts[idx-1].x+1;
+    if(idx<n-1)maxX=controlPts[idx+1].x-1;
+    const clamped=Math.max(minX,Math.min(maxX,Math.max(0,Math.min(MAX,newX))));
+    const newPts=controlPts.map((p,i)=>i===idx?{x:clamped,y:p.y}:p);
+    setControlPts(newPts);const nc=rebuildFromPts(newPts);commitHistory(nc);
+  };
+
+  const doImport=e=>{
+    const f=e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=ev=>{try{const parsed=parseLDT(ev.target.result);setChannels(parsed);commitHistory(parsed);if(mode!=="free")setControlPts(curveToControlPoints(parsed[activeCh],getControlPointPositions(mode)));notify("Loaded: "+f.name);}catch(er){notify("Error: "+er.message);}};
+    r.readAsArrayBuffer(f);e.target.value="";
+  };
+
+  const doExport=(name)=>{
+    const fn=name||saveFileName;
+    const finalName=fn.endsWith(".ldt")?fn:fn+".ldt";
+    const buf=buildLDT(channels);
+    const b=new Blob([buf],{type:"application/octet-stream"});
+    const u=URL.createObjectURL(b),a=document.createElement("a");
+    a.href=u;a.download=finalName;a.click();URL.revokeObjectURL(u);
+    notify("Exported: "+finalName);
+  };
+
+  const smooth=()=>{
+    const nc=channels.map(c=>c.slice());const tgts=linked?[0,1,2]:[activeCh];
+    for(const ch of tgts){const s=nc[ch],sm=s.slice();for(let i=2;i<EPC-2;i++)sm[i]=Math.round((s[i-2]+s[i-1]+s[i]+s[i+1]+s[i+2])/5);nc[ch]=sm;}
+    setChannels(nc);commitHistory(nc);
+    if(mode!=="free")setControlPts(curveToControlPoints(nc[activeCh],getControlPointPositions(mode)));
+    notify("Curve smoothed");
+  };
+
+  const copyAll=()=>{const s=channels[activeCh].slice();const nc=[s.slice(),s.slice(),s.slice()];setChannels(nc);commitHistory(nc);notify("Copied "+["Red","Green","Blue"][activeCh]+" → All");};
+
+  useEffect(()=>{if(mode!=="free")setControlPts(curveToControlPoints(channels[activeCh],getControlPointPositions(mode)));},[activeCh]);
+
+  const cols=["#c43030","#1a7a42","#2060b0"],names=["Red","Green","Blue"];
+  const colBgs=["rgba(196,48,48,0.08)","rgba(26,122,66,0.08)","rgba(32,96,176,0.08)"];
+
+  return h("div",{className:"app"},
+    notif&&h("div",{className:"notif"},notif),
+    h("input",{ref:fileRef,type:"file",accept:".ldt",style:{display:"none"},onChange:doImport}),
+
+    // Save As Modal
+    showSaveAs&&h("div",{className:"modal-overlay",onClick:()=>setShowSaveAs(false)},
+      h("div",{className:"modal",onClick:e=>e.stopPropagation()},
+        h("h3",null,"Export As"),
+        h("input",{className:"modal-input",type:"text",value:saveFileName,onChange:e=>setSaveFileName(e.target.value),autoFocus:true,
+          onKeyDown:e=>{if(e.key==="Enter"){doExport(saveFileName);setShowSaveAs(false);}}}),
+        h("div",{style:{fontSize:12,color:"var(--text3)",marginBottom:14}},"File will be saved in Sony ImageDirector .ldt format (LDT v0200, 10-bit, 3ch × 1024)"),
+        h("div",{className:"modal-actions"},
+          h("button",{className:"btn",onClick:()=>setShowSaveAs(false)},"Cancel"),
+          h("button",{className:"btn btn-accent",onClick:()=>{doExport(saveFileName);setShowSaveAs(false);}},"Export")
+        )
+      )
+    ),
+
+    // Header
+    h("div",{className:"header"},
+      h("div",null,
+        h("div",{className:"header-title"},h("em",null,"Sony LDT")," Gamma Editor"),
+        h("div",{className:"header-sub"},"VPL-VW385ES / VW260ES / VW360ES — 10-bit LUT · 1024 × 3ch")
+      ),
+      h("div",{className:"header-actions"},
+        h("button",{className:"btn",onClick:()=>fileRef.current?.click()},"Import .ldt"),
+        h("button",{className:"btn btn-accent",onClick:()=>setShowSaveAs(true)},"Export As…")
+      )
+    ),
+
+    h("div",{className:"main"},
+      h("div",{className:"canvas-area"},
+        // Toolbar row 1: channels + mode
+        h("div",{className:"toolbar"},
+          ...[0,1,2].map(ch=>h("button",{key:ch,className:"ch-btn",onClick:()=>setActiveCh(ch),
+            style:{borderColor:activeCh===ch?cols[ch]:"rgba(0,0,0,0.1)",background:activeCh===ch?colBgs[ch]:"transparent",color:activeCh===ch?cols[ch]:"#88877e"}}
+          ,names[ch][0])),
+          h("div",{className:"toolbar-sep"}),
+          h("button",{className:"btn btn-sm "+(linked?"btn-active":""),onClick:()=>setLinked(!linked)},linked?"🔗 Linked":"🔓 Independent"),
+          h("div",{className:"toolbar-sep"}),
+          ...["free",4,10,21].map(m=>h("button",{key:m,className:"mode-btn"+(mode===m?" active":""),onClick:()=>switchMode(m)},m==="free"?"Free":m+"pt")),
+          h("div",{className:"toolbar-sep"}),
+          h("button",{className:"btn btn-sm",onClick:smooth},"Smooth"),
+          h("button",{className:"btn btn-sm",onClick:copyAll},"Copy→All"),
+          h("div",{className:"toolbar-sep"}),
+          h("button",{className:"btn btn-sm",disabled:!history.canUndo,onClick:doUndo,style:{opacity:history.canUndo?1:0.35}},"↩ Undo"),
+          h("button",{className:"btn btn-sm",disabled:!history.canRedo,onClick:doRedo,style:{opacity:history.canRedo?1:0.35}},"↪ Redo"),
+          h("button",{className:"btn btn-sm btn-danger",onClick:doReset},"Reset"),
+          h("div",{className:"toolbar-sep"}),
+          ...[["8bit","8-bit"],["10bit","10-bit"],["pct","%"]].map(([k,label])=>h("button",{key:k,className:"mode-btn"+(displayFmt===k?" active":""),style:{padding:"4px 8px",fontSize:11},onClick:()=>setDisplayFmt(k)},label)),
+          h("div",{style:{flex:1}}),
+          h("span",{style:{fontSize:12,color:"var(--text3)",fontFamily:"var(--mono)"}},"Zoom"),
+          h("input",{type:"range",min:1,max:10,step:0.1,value:zoom,onChange:e=>setZoom(+e.target.value),style:{width:70}}),
+          h("span",{style:{fontSize:12,color:"var(--text2)",fontFamily:"var(--mono)",minWidth:32}},zoom.toFixed(1)+"×"),
+          zoom>1&&h("button",{className:"btn btn-sm",onClick:()=>{setZoom(1);setPan({x:0,y:0});}},"Fit")
+        ),
+
+        // Canvas
+        h("div",{className:"canvas-wrap"},
+          h("canvas",{ref:canvasRef,
+            style:{cursor:panning?"grabbing":draggingPt||freeDragging?"crosshair":zoom>1?"grab":"default"},
+            onMouseDown:onDown,onMouseMove:onMove,onMouseUp:onUp,
+            onMouseLeave:()=>{onUp();setHover(null);},
+            onWheel:onWheel}),
+          hover&&h("div",{className:"canvas-overlay",style:{top:8,right:8}},
+            "In: ",h("span",{style:{color:"var(--text)",fontWeight:500}},fmtVal(hover.input)),
+            "  Out: ",h("span",{style:{color:cols[activeCh],fontWeight:500}},fmtVal(channels[activeCh][Math.min(hover.input,MAX)]))
+          ),
+          h("div",{style:{position:"absolute",bottom:8,left:8,fontSize:11,color:"var(--text4)",fontFamily:"var(--mono)",pointerEvents:"none"}},
+            mode==="free"?"Draw on canvas · Alt+drag or drag empty area to pan":"Drag points freely · Alt+drag or drag empty area to pan"
+          )
+        ),
+
+        // Control Points Table
+        mode!=="free"&&h("div",{style:{background:"var(--bg2)",borderRadius:8,border:"1px solid var(--border)",padding:10,overflow:"auto",maxHeight:240,flexShrink:0}},
+          h("table",{className:"cp-table"},
+            h("thead",null,h("tr",null,
+              h("th",null,"Input"),
+              ...(linked?[h("th",{key:"all",style:{color:"var(--accent)"}},"Output")]:[h("th",{key:0,style:{color:cols[0]}},"R"),h("th",{key:1,style:{color:cols[1]}},"G"),h("th",{key:2,style:{color:cols[2]}},"B")])
+            )),
+            h("tbody",null,
+              controlPts.map((pt,i)=>{
+                return h("tr",{key:i,style:{background:activePointIdx===i?"rgba(154,123,46,0.06)":"transparent"},onClick:()=>setActivePointIdx(i)},
+                  h("td",null,h("input",{type:"number",className:"cp-input",min:0,max:fmtMax(),step:fmtStep(),value:fmtVal(pt.x),
+                    style:{color:"var(--text2)",width:60},
+                    onChange:e=>updatePtX(i,parseVal(e.target.value))})),
+                  ...(linked
+                    ?[h("td",{key:"y"},h("input",{type:"number",className:"cp-input",min:0,max:fmtMax(),step:fmtStep(),value:fmtVal(pt.y),style:{color:"var(--accent)"},onChange:e=>updatePtValue(i,parseVal(e.target.value))}))]
+                    :[0,1,2].map(ch=>h("td",{key:ch},h("input",{type:"number",className:"cp-input",min:0,max:fmtMax(),step:fmtStep(),
+                      value:fmtVal(ch===activeCh?pt.y:channels[ch][pt.x]),style:{color:cols[ch]},
+                      onChange:e=>{const v10=parseVal(e.target.value);if(ch===activeCh)updatePtValue(i,v10);else{const nc=channels.map(c=>c.slice());nc[ch][pt.x]=Math.max(0,Math.min(MAX,v10));setChannels(nc);commitHistory(nc);}}})))
+                  )
+                );
+              })
+            )
+          )
+        )
+      ),
+
+      // Sidebar
+      h("div",{className:"sidebar"},
+        h("div",{className:"sb-section"},
+          h("div",{className:"sb-label",style:{color:"var(--text3)"}},"Standard Gamma"),
+          h("div",{className:"preset-grid preset-grid-3"},
+            ...[["Linear",genLinear],["γ 1.8",()=>genGamma(1.8)],["γ 2.0",()=>genGamma(2.0)],
+               ["γ 2.2",()=>genGamma(2.2)],["γ 2.4",()=>genGamma(2.4)],["γ 2.6",()=>genGamma(2.6)],
+               ["S-Curve",()=>genSCurve(1.5)]].map(([l,fn])=>
+              h("button",{key:l,className:"btn btn-sm",onClick:()=>applyPreset(fn)},l))
+          )
+        ),
+
+        h("div",{className:"sb-section"},
+          h("div",{className:"sb-label",style:{color:"var(--accent)"}},"HDR PQ (ST.2084)"),
+          h("div",{style:{marginBottom:8}},
+            h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:13,color:"var(--text2)",marginBottom:4}},
+              h("span",null,"Target brightness"),
+              h("span",{style:{fontFamily:"var(--mono)",color:"var(--accent)",fontWeight:500}},pqNits+" nits")
+            ),
+            h("input",{type:"range",min:50,max:4000,step:10,value:pqNits,onChange:e=>setPqNits(+e.target.value),style:{width:"100%"}}),
+            h("div",{style:{display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--text4)",marginTop:2}},
+              h("span",null,"50"),h("span",null,"1000"),h("span",null,"4000"))
+          ),
+          h("button",{className:"btn btn-accent",style:{width:"100%",marginBottom:6},onClick:()=>applyPreset(()=>genPQ(pqNits))},
+            "Generate PQ → "+pqNits+" nit"),
+          h("div",{className:"preset-grid preset-grid-3"},
+            ...[100,200,300,500,1000,4000].map(n=>
+              h("button",{key:n,className:"btn btn-sm",onClick:()=>applyPreset(()=>genPQ(n))},n+" nit")))
+        ),
+
+        h("div",{className:"sb-section"},
+          h("div",{className:"sb-label",style:{color:"var(--cyan)"}},"HLG"),
+          h("button",{className:"btn btn-sm",style:{width:"100%"},onClick:()=>applyPreset(()=>genHLG(1.2))},"HLG (system γ 1.2)")
+        ),
+
+        h("div",{className:"info-box",style:{background:"rgba(154,123,46,0.04)",border:"1px solid rgba(154,123,46,0.12)"}},
+          h("h4",{style:{color:"var(--accent)"}},"How to use"),
+          h("ol",{style:{color:"var(--text2)"}},
+            h("li",null,"Choose edit mode: 4pt / 10pt / 21pt / Free"),
+            h("li",null,"Select a preset or drag control points"),
+            h("li",null,"Fine-tune values in the table"),
+            h("li",null,"Export As… → name your .ldt file"),
+            h("li",null,"Open in Sony ImageDirector → upload"))
+        ),
+
+        h("div",{className:"info-box",style:{background:"rgba(32,96,176,0.04)",border:"1px solid rgba(32,96,176,0.1)"}},
+          h("h4",{style:{color:"var(--blue)"}},"Controls"),
+          h("p",{style:{color:"var(--text2)"}},
+            h("b",null,"Drag points")," — move horizontally and vertically (clamped between neighbors). ",
+            h("b",null,"Scroll")," — zoom toward cursor. ",
+            h("b",null,"Alt+drag / drag empty area")," — pan when zoomed. ",
+            h("b",null,"⌘Z")," — undo. ",h("b",null,"⌘⇧Z")," — redo. ",
+            h("b",null,"⌘S")," — export.")
+        ),
+
+        h("div",{className:"info-box",style:{background:"rgba(0,0,0,0.02)",border:"1px solid rgba(0,0,0,0.06)"}},
+          h("h4",{style:{color:"var(--text2)"}},"LDT File Format"),
+          h("div",{style:{color:"var(--text3)",fontFamily:"var(--mono)",fontSize:11,lineHeight:1.7}},
+            "LDT v0200 · 512-byte header",h("br"),
+            "3ch × 1024 × 16-bit LE",h("br"),
+            "10-bit (0–1023) · Descending order",h("br"),
+            "Compatible: VPL-VW260/360/385ES")
+        )
+      )
+    )
+  );
+}
+ReactDOM.render(h(App),document.getElementById("app"));
+</script>
+</body>
+</html>
