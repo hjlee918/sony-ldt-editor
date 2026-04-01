@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { MAX_VALUE, ENTRIES_PER_CHANNEL, parseLDT, buildLDT } from '../lib/ldt';
 import { cubicSpline, getControlPointPositions, curveToControlPoints } from '../lib/spline';
-import { generateGamma, generateLinear, generateSCurve, generatePQ, generateHLG } from '../lib/generators';
+import { generateGamma, generateLinear, generateSCurve, generatePQ, generateHLG, generateBT1886 } from '../lib/generators';
 import { drawCanvas } from '../lib/canvas';
 import { formatValue, parseValue, formatMax, formatStep } from '../lib/format';
 import { useHistory } from '../lib/history';
@@ -31,6 +31,11 @@ export default function App() {
   const [saveFileName, setSaveFileName] = useState('custom_gamma.ldt');
   const [freeDragging, setFreeDragging] = useState(false);
   const [displayFmt, setDisplayFmt] = useState('10bit');
+  const [compareChannels, setCompareChannels] = useState(null);
+  const [showCompare, setShowCompare] = useState(false);
+  const [pqPreview, setPqPreview] = useState(null);
+  const [bt1886Lb, setBt1886Lb] = useState(0.005);
+  const [smoothPasses, setSmoothPasses] = useState(1);
 
   const lastFreePt = useRef(null);
   const canvasRef = useRef(null);
@@ -95,7 +100,7 @@ export default function App() {
     const ro = new ResizeObserver(() => {
       const dpr = window.devicePixelRatio || 1, r = c.getBoundingClientRect();
       c.width = r.width * dpr; c.height = r.height * dpr;
-      drawCanvas(c, channels, activeCh, zoom, pan, mode !== 'free' ? controlPts : null, activePointIdx, mode, fmtVal);
+      drawCanvas(c, channels, activeCh, zoom, pan, mode !== 'free' ? controlPts : null, activePointIdx, mode, fmtVal, showCompare ? compareChannels : null, pqPreview);
     });
     ro.observe(c.parentElement);
     return () => ro.disconnect();
@@ -103,8 +108,8 @@ export default function App() {
 
   useEffect(() => {
     const c = canvasRef.current; if (!c) return;
-    drawCanvas(c, channels, activeCh, zoom, pan, mode !== 'free' ? controlPts : null, activePointIdx, mode, fmtVal);
-  }, [channels, activeCh, zoom, pan, controlPts, activePointIdx, mode, displayFmt]);
+    drawCanvas(c, channels, activeCh, zoom, pan, mode !== 'free' ? controlPts : null, activePointIdx, mode, fmtVal, showCompare ? compareChannels : null, pqPreview);
+  }, [channels, activeCh, zoom, pan, controlPts, activePointIdx, mode, displayFmt, compareChannels, showCompare, pqPreview]);
 
   // ─── Keyboard shortcuts ───
   useEffect(() => {
@@ -269,10 +274,17 @@ export default function App() {
   const smooth = () => {
     const nc = channels.map(c => c.slice());
     const tgts = linked ? [0, 1, 2] : [activeCh];
-    for (const ch of tgts) { const s = nc[ch], sm = s.slice(); for (let i = 2; i < ENTRIES_PER_CHANNEL - 2; i++) sm[i] = Math.round((s[i - 2] + s[i - 1] + s[i] + s[i + 1] + s[i + 2]) / 5); nc[ch] = sm; }
+    for (const ch of tgts) {
+      for (let pass = 0; pass < smoothPasses; pass++) {
+        const s = nc[ch], sm = s.slice();
+        for (let i = 2; i < ENTRIES_PER_CHANNEL - 2; i++)
+          sm[i] = Math.round((s[i - 2] + s[i - 1] + s[i] + s[i + 1] + s[i + 2]) / 5);
+        nc[ch] = sm;
+      }
+    }
     setChannels(nc); commitHistory(nc);
     if (mode !== 'free') setControlPts(curveToControlPoints(nc[activeCh], getControlPointPositions(mode)));
-    notify('Curve smoothed');
+    notify(`Smoothed ×${smoothPasses}`);
   };
 
   const copyAll = () => {
@@ -345,7 +357,14 @@ export default function App() {
             ))}
             <div className="toolbar-sep" />
             <button className="btn btn-sm" onClick={smooth}>Smooth</button>
+            <input type="number" min={1} max={50} value={smoothPasses} onChange={e => setSmoothPasses(Math.max(1, Math.min(50, +e.target.value || 1)))}
+              style={{ width: 40, padding: '3px 5px', fontSize: 12, fontFamily: 'var(--mono)', border: '1px solid var(--border2)', borderRadius: 5, background: 'var(--bg)', color: 'var(--text2)', textAlign: 'center' }} title="Smooth passes (1–50)" />
             <button className="btn btn-sm" onClick={copyAll}>Copy→All</button>
+            <div className="toolbar-sep" />
+            <button className="btn btn-sm" onClick={() => { setCompareChannels(channels.map(c => c.slice())); setShowCompare(true); notify('Reference set'); }}>Set Ref</button>
+            {compareChannels && (
+              <button className={`btn btn-sm${showCompare ? ' btn-active' : ''}`} onClick={() => setShowCompare(v => !v)}>Compare</button>
+            )}
             <div className="toolbar-sep" />
             <button className="btn btn-sm" disabled={!history.canUndo} onClick={doUndo} style={{ opacity: history.canUndo ? 1 : 0.35 }}>↩ Undo</button>
             <button className="btn btn-sm" disabled={!history.canRedo} onClick={doRedo} style={{ opacity: history.canRedo ? 1 : 0.35 }}>↪ Redo</button>
@@ -368,6 +387,11 @@ export default function App() {
               onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
               onMouseLeave={() => { onUp(); setHover(null); }}
               onWheel={onWheel} />
+            {pqPreview && (
+              <div className="canvas-overlay" style={{ top: 8, left: 8, color: 'var(--accent)', borderColor: 'var(--accent-border)', background: 'rgba(255,252,240,0.94)' }}>
+                Preview: PQ {pqNits} nit
+              </div>
+            )}
             {hover && (
               <div className="canvas-overlay" style={{ top: 8, right: 8 }}>
                 In: <span style={{ color: 'var(--text)', fontWeight: 500 }}>{fmtVal(hover.input)}</span>
@@ -441,17 +465,21 @@ export default function App() {
                 <span>Target brightness</span>
                 <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 500 }}>{pqNits} nits</span>
               </div>
-              <input type="range" min={50} max={4000} step={10} value={pqNits} onChange={e => setPqNits(+e.target.value)} style={{ width: '100%' }} />
+              <input type="range" min={50} max={4000} step={10} value={pqNits}
+                onChange={e => { const n = +e.target.value; setPqNits(n); setPqPreview(generatePQ(n)); }}
+                onMouseUp={() => setPqPreview(null)}
+                onTouchEnd={() => setPqPreview(null)}
+                style={{ width: '100%' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text4)', marginTop: 2 }}>
                 <span>50</span><span>1000</span><span>4000</span>
               </div>
             </div>
-            <button className="btn btn-accent" style={{ width: '100%', marginBottom: 6 }} onClick={() => applyPreset(() => generatePQ(pqNits))}>
+            <button className="btn btn-accent" style={{ width: '100%', marginBottom: 6 }} onClick={() => { applyPreset(() => generatePQ(pqNits)); setPqPreview(null); }}>
               Generate PQ → {pqNits} nit
             </button>
             <div className="preset-grid preset-grid-3">
               {[100, 200, 300, 500, 1000, 4000].map(n => (
-                <button key={n} className="btn btn-sm" onClick={() => applyPreset(() => generatePQ(n))}>{n} nit</button>
+                <button key={n} className="btn btn-sm" onClick={() => { applyPreset(() => generatePQ(n)); setPqPreview(null); }}>{n} nit</button>
               ))}
             </div>
           </div>
@@ -459,6 +487,23 @@ export default function App() {
           <div className="sb-section">
             <div className="sb-label" style={{ color: 'var(--cyan)' }}>HLG</div>
             <button className="btn btn-sm" style={{ width: '100%' }} onClick={() => applyPreset(() => generateHLG(1.2))}>HLG (system γ 1.2)</button>
+          </div>
+
+          <div className="sb-section">
+            <div className="sb-label" style={{ color: 'var(--text3)' }}>BT.1886</div>
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: 'var(--text2)', marginBottom: 4 }}>
+                <span>Black level (Lb)</span>
+                <span style={{ fontFamily: 'var(--mono)', fontWeight: 500 }}>{(bt1886Lb * 100).toFixed(2)}%</span>
+              </div>
+              <input type="range" min={0} max={0.05} step={0.001} value={bt1886Lb} onChange={e => setBt1886Lb(+e.target.value)} style={{ width: '100%' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text4)', marginTop: 2 }}>
+                <span>0% (ideal)</span><span>2.5%</span><span>5%</span>
+              </div>
+            </div>
+            <button className="btn btn-sm" style={{ width: '100%' }} onClick={() => applyPreset(() => generateBT1886(bt1886Lb))}>
+              BT.1886 (Lb {(bt1886Lb * 100).toFixed(2)}%)
+            </button>
           </div>
 
           <div className="info-box" style={{ background: 'rgba(154,123,46,0.04)', border: '1px solid rgba(154,123,46,0.12)' }}>

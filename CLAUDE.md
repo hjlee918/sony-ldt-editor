@@ -41,6 +41,7 @@ This is the critical domain knowledge for this project:
 - **Standard gamma**: `output = input^gamma` (power law). γ2.2 is the broadcast standard.
 - **PQ (ST.2084)**: HDR tone mapping. Converts PQ-encoded signal to display output with soft highlight roll-off. Apply `pow(mapped, 1/2.2)` encoding since the projector's panel applies its own gamma on top.
 - **HLG**: Hybrid Log-Gamma for broadcast HDR. OETF inverse with configurable system gamma.
+- **BT.1886**: Broadcast display EOTF. Formula: `L(V) = (alpha * V + beta)^2.4` where `alpha = 1 - Lb^(1/2.4)`, `beta = Lb^(1/2.4)`, and `Lb` is the relative black level (0–0.05). At Lb=0 this is identical to gamma 2.4.
 - **Cubic spline**: Natural cubic spline interpolation between control points for smooth curves.
 
 ## Key Architecture Decisions
@@ -50,23 +51,60 @@ This is the critical domain knowledge for this project:
 - Undo/redo history stores full channel snapshots (up to 50 states)
 - Channels can be linked (same curve for R/G/B) or independent
 
+## Features
+
+### Curve Generators (`src/lib/generators.js`)
+| Function | Description |
+|---|---|
+| `generateGamma(gamma)` | Power-law gamma curve (e.g. 2.2, 2.4) |
+| `generateLinear()` | Identity curve |
+| `generateSCurve(contrast)` | Sigmoid S-curve, default contrast 1.5 |
+| `generatePQ(targetNits)` | PQ/ST.2084 HDR tone mapping to target display nits |
+| `generateHLG(systemGamma)` | HLG broadcast HDR, default system gamma 1.2 |
+| `generateBT1886(Lb)` | BT.1886 EOTF with configurable black level (0–0.05), default 0 |
+
+### Canvas (`src/lib/canvas.js`)
+`drawCanvas(canvas, channels, activeCh, zoom, pan, controlPts, activePointIdx, mode, fmtFn, compareChannels, previewCurve)`
+
+- `compareChannels` — optional 3-channel reference array; drawn as dashed colored lines behind active curves
+- `previewCurve` — optional single curve array; drawn as a dashed amber ghost (used for PQ slider live preview)
+
+### App Features (`src/components/App.jsx`)
+- **Compare curves**: "Set Ref" button snapshots current channels; "Compare" toggle overlays reference as dashed lines on the canvas
+- **PQ live preview**: Dragging the PQ nits slider shows a dashed preview curve in real time without committing; labeled "Preview: PQ N nit" in canvas top-left; cleared on release or when Generate is clicked
+- **Smooth passes**: Number input (1–50) next to the Smooth button controls how many passes of the 5-point moving average are applied per click
+- **BT.1886 preset**: Sidebar section with Lb black-level slider (0–5%, default 0.5%) and a Generate button
+
+### Edit Modes
+- **Free**: Direct draw on canvas; interpolates between drag points
+- **4pt / 10pt / 21pt**: Cubic spline interpolation between N movable control points
+- Control points are clamped so they cannot cross neighbors (X-axis)
+
+### Sidebar Presets
+- Standard Gamma: Linear, γ1.8, γ2.0, γ2.2, γ2.4, γ2.6, S-Curve
+- HDR PQ: Nits slider (50–4000) with live preview + quick-pick buttons (100/200/300/500/1000/4000 nit)
+- HLG: System γ1.2
+- BT.1886: Lb slider (0–5%) + Generate button
+
 ## File Organization
 ```
 src/
   lib/
     ldt.js          — LDT file parsing and building
-    generators.js   — Gamma, PQ, HLG, S-curve generators
+    generators.js   — Gamma, PQ, HLG, BT.1886, S-curve generators
     spline.js       — Natural cubic spline interpolation
     format.js       — Value display formatting (8-bit/10-bit/%)
+    canvas.js       — Canvas drawing (supports compare overlay + PQ preview ghost)
+    history.js      — Undo/redo history hook
   components/
-    App.jsx         — Main application layout
-    Canvas.jsx      — Curve canvas with drawing, points, zoom/pan
-    Toolbar.jsx     — Channel selector, mode, undo/redo, format
-    Sidebar.jsx     — Presets, PQ slider, info panels
-    ControlTable.jsx — Control point value editor table
-    SaveAsModal.jsx — Export filename dialog
+    App.jsx         — Main application (all UI: toolbar, canvas, sidebar, modals)
   index.jsx         — Entry point
   index.css         — Global styles
+
+Resources/
+  47254410M.pdf              — VPL-VW385ES official operating instructions (Sony)
+  generate_manual.py         — Python script to generate the calibration controls .docx
+  VPL-VW385ES_Calibration_Controls.docx — Full picture/color calibration controls reference
 ```
 
 ## Commands
@@ -80,3 +118,14 @@ src/
 - All control points are freely movable (both X and Y), clamped so they can't cross neighbors
 - Edit modes: Free (direct draw), 4pt, 10pt, 21pt (cubic spline interpolation)
 - The exported .ldt file must be exactly 6,656 bytes with the exact header format to be accepted by Sony ImageDirector
+
+## VPL-VW385ES Projector — Picture Menu Reference
+Key calibration controls confirmed from the official manual (47254410M) and OSD screenshots:
+
+- **Calib. Preset**: 9 modes (Cinema Film 1/2, Reference, TV, Photo, Game, Bright Cinema, Bright TV, User)
+- **Gamma Correction**: 1.8 / 2.0 / 2.1 / 2.2 / 2.4 / 2.6 / Gamma 7–10 (custom LDT slots) / Off
+- **Color Temp**: D93 / D75 / D65 / D55 / Custom 1–5; each slot has Gain R/G/B + Bias R/G/B (6 sub-controls × 9 slots = 54)
+- **Color Correction**: 6 axes (Red, Yellow, Green, Cyan, Blue, Magenta) × Hue/Saturation/Brightness = 18 adjustments
+- **Color Space Custom**: Color Select cycles R/G/B/C/M/Y; each exposes Cyan–Red and Magenta–Green sliders = 12 chromaticity adjustments
+- **Advanced Picture**: Auto Calibration (Pre Check / Adjust / Before-After / Reset) for panel drift correction
+- Full reference: `Resources/VPL-VW385ES_Calibration_Controls.docx`

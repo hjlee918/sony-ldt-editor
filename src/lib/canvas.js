@@ -17,8 +17,10 @@ const PADDING = { top: 18, right: 18, bottom: 38, left: 50 };
  * @param {number} activePointIdx - Highlighted control point index (-1 = none)
  * @param {string|number} mode - Edit mode ("free", 4, 10, 21)
  * @param {function} fmtFn - Value formatter (10-bit value → display string)
+ * @param {number[][]|null} compareChannels - Reference channels to overlay as dashed lines
+ * @param {number[]|null} previewCurve - Single preview curve to show as ghost (e.g. PQ preview)
  */
-export function drawCanvas(canvas, channels, activeCh, zoom, pan, controlPts, activePointIdx, mode, fmtFn) {
+export function drawCanvas(canvas, channels, activeCh, zoom, pan, controlPts, activePointIdx, mode, fmtFn, compareChannels = null, previewCurve = null) {
   if (!fmtFn) fmtFn = v => v;
 
   const ctx = canvas.getContext('2d');
@@ -136,6 +138,41 @@ export function drawCanvas(canvas, channels, activeCh, zoom, pan, controlPts, ac
     ctx.stroke();
   }
   ctx.globalAlpha = 1;
+
+  // Compare (reference) overlay — dashed lines behind active curves
+  if (compareChannels) {
+    ctx.setLineDash([5, 5]);
+    ctx.lineWidth = 1.5;
+    for (let ch = 0; ch < 3; ch++) {
+      ctx.strokeStyle = CHANNEL_COLORS[ch];
+      ctx.globalAlpha = 0.35;
+      ctx.beginPath();
+      const ref = compareChannels[ch];
+      for (let i = 0; i < ENTRIES_PER_CHANNEL; i += step) {
+        if (i === 0) ctx.moveTo(toX(i), toY(ref[i]));
+        else ctx.lineTo(toX(i), toY(ref[i]));
+      }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+
+  // PQ preview ghost — single dashed curve in accent color
+  if (previewCurve) {
+    ctx.setLineDash([3, 4]);
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#9a7b2e';
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    for (let i = 0; i < ENTRIES_PER_CHANNEL; i += step) {
+      if (i === 0) ctx.moveTo(toX(i), toY(previewCurve[i]));
+      else ctx.lineTo(toX(i), toY(previewCurve[i]));
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
 
   // Control points
   if (controlPts && mode !== 'free') {

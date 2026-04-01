@@ -96,6 +96,28 @@ export function generateLinear() {
 }
 
 /**
+ * Generate a BT.1886 EOTF curve (broadcast display gamma).
+ * L(V) = (alpha * V + beta)^2.4
+ * With Lb=0 this is identical to gamma 2.4. A small black level (e.g. 0.01)
+ * creates the characteristic soft toe, matching real display black lift.
+ *
+ * @param {number} Lb - Relative black level (0–0.05), e.g. 0.005 = 0.5% of peak
+ * @returns {number[]} - 1024 output values
+ */
+export function generateBT1886(Lb = 0) {
+  const lb = Math.max(0, Math.min(0.5, Lb));
+  const beta = Math.pow(lb, 1 / 2.4);
+  const alpha = 1 - beta;
+  const curve = new Array(ENTRIES_PER_CHANNEL);
+  for (let i = 0; i < ENTRIES_PER_CHANNEL; i++) {
+    const V = i / MAX_VALUE;
+    const L = Math.pow(Math.max(0, alpha * V + beta), 2.4);
+    curve[i] = Math.round(Math.min(1, L) * MAX_VALUE);
+  }
+  return curve;
+}
+
+/**
  * Generate an S-curve for contrast enhancement.
  *
  * @param {number} contrast - Contrast strength (default 1.5)
