@@ -441,33 +441,28 @@ add_table(
     col_widths=[1.6, 4.8],
 )
 
-add_heading('Custom Color Space — Chromaticity Sub-Menu', level=3,
+add_heading('Color Space Gamut Adjustment', level=3,
             color=DARK_GRAY, size=10, space_before=8, space_after=4, bold=True)
 add_body(
-    'When Custom is selected, a Color Select control cycles through six colour axes. '
-    'Each axis exposes two sliders that shift the selected primary or secondary colour '
-    'along opponent-colour directions in the CIE chromaticity diagram.',
+    'When any Color Space mode is active, two global sliders appear that shift the '
+    'entire selected gamut as a whole. These are not per-primary adjustments — they '
+    'apply equally across the full colour space.',
     space_after=6
 )
 add_table(
-    headers=['Color Select', 'Slider 1', 'Slider 2'],
+    headers=['Slider', 'Direction', 'Effect'],
     rows=[
-        ['Red',     'Cyan – Red', 'Magenta – Green'],
-        ['Green',   'Cyan – Red', 'Magenta – Green'],
-        ['Blue',    'Cyan – Red', 'Magenta – Green'],
-        ['Cyan',    'Cyan – Red', 'Magenta – Green'],
-        ['Magenta', 'Cyan – Red', 'Magenta – Green'],
-        ['Yellow',  'Cyan – Red', 'Magenta – Green'],
+        ['Cyan – Red',    'Negative → Cyan  |  Positive → Red',   'Shifts the entire gamut along the cyan–red opponent axis'],
+        ['Magenta – Green','Negative → Magenta  |  Positive → Green','Shifts the entire gamut along the magenta–green opponent axis'],
     ],
-    col_widths=[1.6, 2.1, 2.7],
-    note='Cyan–Red moves the selected colour toward cyan (negative) or red (positive). '
-         'Magenta–Green moves it toward magenta (negative) or green (positive). '
-         'Together these two axes allow 2D chromaticity positioning of each colour.'
+    col_widths=[1.6, 2.4, 2.4],
+    note='These 2 sliders are present for all Color Space modes (BT.709, BT.2020, '
+         'Color Space 1–3, Custom). They function as a global gamut white-point trim, '
+         'not individual primary/secondary colour adjustments.'
 )
 add_callout(
-    '6 colour axes × 2 sliders = 12 individual chromaticity adjustments in Custom Color Space. '
-    'Verified from projector on-screen display (screenshot). The manual only states '
-    '"You can adjust the color space setting" without listing the sub-controls.',
+    '2 sliders total for the entire color space — confirmed from OSD screenshot. '
+    'Earlier documentation suggesting per-primary adjustment (6 × 2 = 12) was incorrect.',
     fill_hex='FFF8EC', border_hex='B86C00', label='VERIFIED OSD', label_color=HDR_AMBER
 )
 
@@ -521,7 +516,7 @@ add_table(
         ['Gamma Correction presets',                 '10 + Off',   '6 standard + 4 custom LDT slots (Gamma 7–10)'],
         ['Colour Correction matrix',                 '18',   '6 colours × Hue, Saturation, Brightness'],
         ['Noise & processing (NR, MPEG NR, Smooth Gradation, Film Mode)', '4', 'Each multi-option'],
-        ['Color Space Custom — chromaticity sliders',  '12',   '6 colour axes × 2 sliders (Cyan–Red, Magenta–Green). Verified from OSD screenshot'],
+        ['Color Space — global gamut sliders',  '2',   'Cyan–Red and Magenta–Green; apply to the entire selected color space, not per primary. Verified from OSD screenshot'],
         ['Remaining Expert (Clear White, x.v.Color, HDR, Input Lag)', '4', ''],
         ['Advanced Picture (Auto Calibration)',      '4 functions', 'Pre Check, Adjust, Before/After, Reset'],
     ],

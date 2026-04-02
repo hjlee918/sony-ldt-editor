@@ -126,6 +126,6 @@ Key calibration controls confirmed from the official manual (47254410M) and OSD 
 - **Gamma Correction**: 1.8 / 2.0 / 2.1 / 2.2 / 2.4 / 2.6 / Gamma 7–10 (custom LDT slots) / Off
 - **Color Temp**: D93 / D75 / D65 / D55 / Custom 1–5; each slot has Gain R/G/B + Bias R/G/B (6 sub-controls × 9 slots = 54)
 - **Color Correction**: 6 axes (Red, Yellow, Green, Cyan, Blue, Magenta) × Hue/Saturation/Brightness = 18 adjustments
-- **Color Space Custom**: Color Select cycles R/G/B/C/M/Y; each exposes Cyan–Red and Magenta–Green sliders = 12 chromaticity adjustments
+- **Color Space**: When any color space mode is selected (BT.709, Color Space 1–3, Custom, etc.), two global sliders appear: **Cyan–Red** and **Magenta–Green** — these shift the entire selected color space's gamut, not individual primaries. Total = 2 adjustments.
 - **Advanced Picture**: Auto Calibration (Pre Check / Adjust / Before-After / Reset) for panel drift correction
 - Full reference: `Resources/VPL-VW385ES_Calibration_Controls.docx`
