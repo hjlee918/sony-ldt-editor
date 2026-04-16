@@ -113,6 +113,19 @@ export default function App() {
     drawCanvas(c, channels, activeCh, zoom, pan, mode !== 'free' ? controlPts : null, activePointIdx, mode, fmtVal, showCompare ? compareChannels : null, pqPreview);
   }, [channels, activeCh, zoom, pan, controlPts, activePointIdx, mode, displayFmt, compareChannels, showCompare, pqPreview]);
 
+  // ─── Detached canvas sync ───
+  useEffect(() => {
+    if (!window.canvasBridge || window.canvasBridge.isDetached()) return;
+    window.canvasBridge.sendCurveSync({ channels });
+  }, [channels]);
+
+  useEffect(() => {
+    if (!window.canvasBridge) return;
+    return window.canvasBridge.onDetachClosed(() => {
+      // detached window closed — no UI state to reset currently
+    });
+  }, []);
+
   // ─── Keyboard shortcuts ───
   useEffect(() => {
     const handler = (e) => {
@@ -398,6 +411,13 @@ export default function App() {
             <input type="range" min={1} max={10} step={0.1} value={zoom} onChange={e => setZoom(+e.target.value)} style={{ width: 70 }} />
             <span style={{ fontSize: 12, color: 'var(--text2)', fontFamily: 'var(--mono)', minWidth: 32 }}>{zoom.toFixed(1)}×</span>
             {zoom > 1 && <button className="btn btn-sm" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>Fit</button>}
+            <button
+              className="toolbar-btn"
+              title="Detach canvas to second window"
+              onClick={() => window.canvasBridge?.detach()}
+            >
+              ⧉
+            </button>
             <button
               className="toolbar-btn"
               title="Focus canvas (F)"
