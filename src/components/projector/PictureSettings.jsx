@@ -8,7 +8,6 @@ const ITEMS = {
   hdr:              [0x00, 0x7c],
   advancedIris:     [0x00, 0x1d],
   nr:               [0x00, 0x25],
-  inputLagReduction:[0x00, 0x99],
 };
 
 const COLOR_TEMP_OPTS = [
@@ -59,10 +58,8 @@ function signedToSdcp(val) {
   return val < 0 ? val + 0x10000 : val;
 }
 
-export default function PictureSettings({ status, onSet }) {
-  const isCustomColorSpace = status.colorSpace === 6;
-
-  const Dropdown = ({ label, value, opts, upper, lower }) => (
+function Dropdown({ label, value, opts, upper, lower, onSet }) {
+  return (
     <div className="proj-row">
       <span className="proj-label">{label}</span>
       <select
@@ -74,8 +71,10 @@ export default function PictureSettings({ status, onSet }) {
       </select>
     </div>
   );
+}
 
-  const Slider = ({ label, value, min, max, upper, lower }) => (
+function Slider({ label, value, min, max, upper, lower, onSet, transform }) {
+  return (
     <div className="proj-slider-row">
       <div className="proj-slider-header">
         <span className="proj-label">{label}</span>
@@ -84,29 +83,36 @@ export default function PictureSettings({ status, onSet }) {
       <input
         type="range" min={min} max={max}
         value={value ?? min}
-        onChange={(e) => onSet(upper, lower, parseInt(e.target.value))}
+        onChange={(e) => {
+          const v = parseInt(e.target.value);
+          onSet(upper, lower, transform ? transform(v) : v);
+        }}
         className="proj-slider"
       />
     </div>
   );
+}
+
+export default function PictureSettings({ status, onSet }) {
+  const isCustomColorSpace = status.colorSpace === 6;
 
   return (
     <div className="proj-picture-settings">
       <div className="proj-section-label">PICTURE</div>
-      <Slider label="Brightness" value={status.brightness} min={0} max={100} upper={0x00} lower={0x10} />
-      <Slider label="Contrast"   value={status.contrast}   min={0} max={100} upper={0x00} lower={0x11} />
-      <Dropdown label="Color Temp"  value={status.colorTemp}  opts={COLOR_TEMP_OPTS}  upper={0x00} lower={0x17} />
-      <Dropdown label="Color Space" value={status.colorSpace} opts={COLOR_SPACE_OPTS} upper={0x00} lower={0x3b} />
+      <Slider label="Brightness" value={status.brightness} min={0} max={100} upper={0x00} lower={0x10} onSet={onSet} />
+      <Slider label="Contrast"   value={status.contrast}   min={0} max={100} upper={0x00} lower={0x11} onSet={onSet} />
+      <Dropdown label="Color Temp"  value={status.colorTemp}  opts={COLOR_TEMP_OPTS}  upper={0x00} lower={0x17} onSet={onSet} />
+      <Dropdown label="Color Space" value={status.colorSpace} opts={COLOR_SPACE_OPTS} upper={0x00} lower={0x3b} onSet={onSet} />
       {isCustomColorSpace && (
         <>
-          <Slider label="Cyan–Red"      value={status.csCustomCyanRed}    min={-50} max={50} upper={0x00} lower={0x76} />
-          <Slider label="Magenta–Green" value={status.csCustomMagGreen}   min={-50} max={50} upper={0x00} lower={0x77} />
+          <Slider label="Cyan–Red"      value={sdcpToSigned(status.csCustomCyanRed ?? 0)}    min={-50} max={50} upper={0x00} lower={0x76} onSet={onSet} transform={signedToSdcp} />
+          <Slider label="Magenta–Green" value={sdcpToSigned(status.csCustomMagGreen ?? 0)}   min={-50} max={50} upper={0x00} lower={0x77} onSet={onSet} transform={signedToSdcp} />
         </>
       )}
-      <Dropdown label="Motionflow"   value={status.motionflow}       opts={MOTIONFLOW_OPTS} upper={0x00} lower={0x59} />
-      <Dropdown label="HDR"          value={status.hdr}              opts={HDR_OPTS}        upper={0x00} lower={0x7c} />
-      <Dropdown label="Advanced Iris" value={status.advancedIris}   opts={IRIS_OPTS}       upper={0x00} lower={0x1d} />
-      <Dropdown label="NR"           value={status.nr}               opts={NR_OPTS}         upper={0x00} lower={0x25} />
+      <Dropdown label="Motionflow"   value={status.motionflow}       opts={MOTIONFLOW_OPTS} upper={0x00} lower={0x59} onSet={onSet} />
+      <Dropdown label="HDR"          value={status.hdr}              opts={HDR_OPTS}        upper={0x00} lower={0x7c} onSet={onSet} />
+      <Dropdown label="Advanced Iris" value={status.advancedIris}   opts={IRIS_OPTS}       upper={0x00} lower={0x1d} onSet={onSet} />
+      <Dropdown label="NR"           value={status.nr}               opts={NR_OPTS}         upper={0x00} lower={0x25} onSet={onSet} />
 
       <div className="proj-section-label" style={{ marginTop: 16 }}>COLOR CORRECTION</div>
       <div className="cc-grid">
