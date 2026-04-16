@@ -149,3 +149,19 @@
 .cc-col-label { font-size: 10px; color: #999; text-align: center; }
 .cc-axis-label { font-size: 12px; color: #444; align-self: center; }
 .cc-slider { width: 100%; }
+
+.projector-status-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 16px;
+  background: #1a1a2e;
+  color: #8090b0;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.status-dot.connected { color: #22c55e; }
+.status-dot.disconnected { color: #666; }
+.status-info { color: #aaa; }
+.status-info.dimmed { color: #666; }
+.status-chip { background: #22c55e; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.upload-main-btn { background: #9a7b2e; color: white; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.disconnect-btn { background: rgba(196,48,48,0.2); color: #e08080; border: 1px solid #c43030; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
