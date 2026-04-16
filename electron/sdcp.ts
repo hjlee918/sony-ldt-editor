@@ -1,3 +1,7 @@
+import { createHash } from 'crypto';
+import { Socket } from 'net';
+import { EventEmitter } from 'events';
+
 const FIXED_PREFIX = Buffer.from([
   0xa5, 0x01, 0x00, 0x01, 0x00, 0x01, 0x05, 0x00, 0x01, 0x00, 0x01,
 ]);
@@ -72,4 +76,120 @@ export function buildSetPacket(itemUpper: number, itemLower: number, value: numb
     ]),
   ]);
   return buildFrame(inner);
+}
+
+export type ErrorCode = 'err_auth' | 'err_connect' | 'err_cmd' | 'err_val' | 'err_inactive' | 'err_timeout';
+
+export interface ProjectorStatus {
+  connected: boolean;
+  gammaCorrection: number;
+  brightness: number;
+  contrast: number;
+  colorTemp: number;
+  colorSpace: number;
+  calibPreset: number;
+  motionflow: number;
+  hdr: number;
+  advancedIris: number;
+  nr: number;
+  inputLagReduction: number;
+}
+
+export class SdcpConnection extends EventEmitter {
+  private socket: Socket | null = null;
+  private responseBuffer = Buffer.alloc(0);
+
+  async connect(ip: string, password?: string): Promise<'ok' | ErrorCode> {
+    return new Promise((resolve) => {
+      const sock = new Socket();
+      let authDone = false;
+
+      const timer = setTimeout(() => {
+        sock.destroy();
+        resolve('err_connect');
+      }, 10_000);
+
+      sock.once('data', (data: Buffer) => {
+        const challenge = data.toString().trim();
+        if (challenge === 'NOKEY') {
+          authDone = true;
+          clearTimeout(timer);
+          this.socket = sock;
+          sock.on('data', (d: Buffer) => this.onData(d));
+          resolve('ok');
+        } else {
+          // Challenge-response: SHA256(randomString + password)
+          const hash = createHash('sha256')
+            .update(challenge + (password ?? ''))
+            .digest('hex');
+          sock.write(hash + '\r\n');
+          sock.once('data', (resp: Buffer) => {
+            clearTimeout(timer);
+            const answer = resp.toString().trim();
+            if (answer === 'ok') {
+              authDone = true;
+              this.socket = sock;
+              sock.on('data', (d: Buffer) => this.onData(d));
+              resolve('ok');
+            } else {
+              sock.destroy();
+              resolve('err_auth');
+            }
+          });
+        }
+      });
+
+      sock.on('error', () => {
+        if (!authDone) {
+          clearTimeout(timer);
+          resolve('err_connect');
+        }
+      });
+
+      sock.connect(53484, ip);
+    });
+  }
+
+  async disconnect(): Promise<void> {
+    this.socket?.destroy();
+    this.socket = null;
+    this.responseBuffer = Buffer.alloc(0);
+  }
+
+  /** Send a pre-built frame and wait for the response frame. Timeout: 60s. */
+  async sendFrame(frame: Buffer): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket || this.socket.destroyed) {
+        return reject(new Error('err_connect'));
+      }
+      const timer = setTimeout(() => reject(new Error('err_timeout')), 60_000);
+      this.once('response', (resp: Buffer) => {
+        clearTimeout(timer);
+        resolve(resp);
+      });
+      this.socket.write(frame);
+    });
+  }
+
+  private onData(data: Buffer): void {
+    this.responseBuffer = Buffer.concat([this.responseBuffer, data]);
+    // Response frames: same outer format, direction byte = 01
+    while (this.responseBuffer.length >= 12) {
+      if (this.responseBuffer[0] !== 0x02 || this.responseBuffer[1] !== 0x0a) {
+        // Out of sync — drop one byte
+        this.responseBuffer = this.responseBuffer.slice(1);
+        continue;
+      }
+      const len = (this.responseBuffer[8] << 8) | this.responseBuffer[9];
+      const frameLen = 10 + len;
+      if (this.responseBuffer.length < frameLen) break;
+      const frame = this.responseBuffer.slice(0, frameLen);
+      this.responseBuffer = this.responseBuffer.slice(frameLen);
+      this.emit('response', frame);
+    }
+  }
+
+  isConnected(): boolean {
+    return this.socket !== null && !this.socket.destroyed;
+  }
 }
