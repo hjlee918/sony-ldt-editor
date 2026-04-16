@@ -1,4 +1,3 @@
-import { createHash } from 'crypto';
 import { Socket } from 'net';
 import { EventEmitter } from 'events';
 
@@ -103,53 +102,20 @@ export class SdcpConnection extends EventEmitter {
   private responseBuffer = Buffer.alloc(0);
   private pendingResponses: Array<{ resolve: (buf: Buffer) => void; reject: (err: Error) => void }> = [];
 
-  async connect(ip: string, password?: string): Promise<'ok' | ErrorCode> {
+  async connect(ip: string, _password?: string): Promise<'ok' | ErrorCode> {
+    // Wireshark capture of VW385ES shows no auth handshake — the projector
+    // accepts SDCP commands immediately after TCP connect with no challenge.
     return new Promise((resolve) => {
       const sock = new Socket();
-      let authDone = false;
 
-      const timer = setTimeout(() => {
-        sock.destroy();
-        resolve('err_connect');
-      }, 10_000);
-
-      sock.once('data', (data: Buffer) => {
-        const challenge = data.toString().trim();
-        if (challenge === 'NOKEY') {
-          authDone = true;
-          clearTimeout(timer);
-          this.socket = sock;
-          sock.on('data', (d: Buffer) => this.onData(d));
-          sock.on('error', (err) => this.onSocketError(err));
-          resolve('ok');
-        } else {
-          const hash = createHash('sha256')
-            .update(challenge + (password ?? '').trim())
-            .digest('hex');
-          sock.write(hash + '\r\n');
-          sock.once('data', (resp: Buffer) => {
-            clearTimeout(timer);
-            const answer = resp.toString().trim();
-            if (answer === 'ok') {
-              authDone = true;
-              this.socket = sock;
-              sock.on('data', (d: Buffer) => this.onData(d));
-              sock.on('error', (err) => this.onSocketError(err));
-              resolve('ok');
-            } else {
-              sock.destroy();
-              resolve('err_auth');
-            }
-          });
-        }
+      sock.on('connect', () => {
+        this.socket = sock;
+        sock.on('data', (d: Buffer) => this.onData(d));
+        sock.on('error', (err) => this.onSocketError(err));
+        resolve('ok');
       });
 
-      sock.on('error', () => {
-        if (!authDone) {
-          clearTimeout(timer);
-          resolve('err_connect');
-        }
-      });
+      sock.on('error', () => resolve('err_connect'));
 
       sock.connect(53484, ip);
     });
