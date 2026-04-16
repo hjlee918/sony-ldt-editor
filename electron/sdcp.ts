@@ -98,6 +98,7 @@ export interface ProjectorStatus {
 export class SdcpConnection extends EventEmitter {
   private socket: Socket | null = null;
   private responseBuffer = Buffer.alloc(0);
+  private pendingResponses: Array<{ resolve: (buf: Buffer) => void; reject: (err: Error) => void }> = [];
 
   async connect(ip: string, password?: string): Promise<'ok' | ErrorCode> {
     return new Promise((resolve) => {
@@ -116,11 +117,11 @@ export class SdcpConnection extends EventEmitter {
           clearTimeout(timer);
           this.socket = sock;
           sock.on('data', (d: Buffer) => this.onData(d));
+          sock.on('error', (err) => this.onSocketError(err));
           resolve('ok');
         } else {
-          // Challenge-response: SHA256(randomString + password)
           const hash = createHash('sha256')
-            .update(challenge + (password ?? ''))
+            .update(challenge + (password ?? '').trim())
             .digest('hex');
           sock.write(hash + '\r\n');
           sock.once('data', (resp: Buffer) => {
@@ -130,6 +131,7 @@ export class SdcpConnection extends EventEmitter {
               authDone = true;
               this.socket = sock;
               sock.on('data', (d: Buffer) => this.onData(d));
+              sock.on('error', (err) => this.onSocketError(err));
               resolve('ok');
             } else {
               sock.destroy();
@@ -154,38 +156,53 @@ export class SdcpConnection extends EventEmitter {
     this.socket?.destroy();
     this.socket = null;
     this.responseBuffer = Buffer.alloc(0);
+    // Reject any in-flight requests
+    const pending = this.pendingResponses.splice(0);
+    for (const p of pending) p.reject(new Error('err_connect'));
   }
 
-  /** Send a pre-built frame and wait for the response frame. Timeout: 60s. */
+  /** Send a pre-built frame and wait for the corresponding response. 60s timeout. */
   async sendFrame(frame: Buffer): Promise<Buffer> {
     return new Promise((resolve, reject) => {
       if (!this.socket || this.socket.destroyed) {
         return reject(new Error('err_connect'));
       }
-      const timer = setTimeout(() => reject(new Error('err_timeout')), 60_000);
-      this.once('response', (resp: Buffer) => {
-        clearTimeout(timer);
-        resolve(resp);
+      const timer = setTimeout(() => {
+        const idx = this.pendingResponses.findIndex((p) => p.reject === reject);
+        if (idx !== -1) this.pendingResponses.splice(idx, 1);
+        reject(new Error('err_timeout'));
+      }, 60_000);
+      this.pendingResponses.push({
+        resolve: (buf) => { clearTimeout(timer); resolve(buf); },
+        reject: (err) => { clearTimeout(timer); reject(err); },
       });
       this.socket.write(frame);
     });
   }
 
+  private onSocketError(_err: Error): void {
+    // Reject all pending requests when the socket drops
+    const pending = this.pendingResponses.splice(0);
+    for (const p of pending) p.reject(new Error('err_connect'));
+    this.socket = null;
+  }
+
   private onData(data: Buffer): void {
     this.responseBuffer = Buffer.concat([this.responseBuffer, data]);
-    // Response frames: same outer format, direction byte = 01
     while (this.responseBuffer.length >= 12) {
       if (this.responseBuffer[0] !== 0x02 || this.responseBuffer[1] !== 0x0a) {
-        // Out of sync — drop one byte
         this.responseBuffer = this.responseBuffer.slice(1);
         continue;
       }
       const len = (this.responseBuffer[8] << 8) | this.responseBuffer[9];
+      // Total frame = 10-byte header + len bytes (which includes checksum + ETX)
       const frameLen = 10 + len;
       if (this.responseBuffer.length < frameLen) break;
       const frame = this.responseBuffer.slice(0, frameLen);
       this.responseBuffer = this.responseBuffer.slice(frameLen);
-      this.emit('response', frame);
+      // Dequeue the oldest pending response (FIFO)
+      const pending = this.pendingResponses.shift();
+      if (pending) pending.resolve(frame);
     }
   }
 
