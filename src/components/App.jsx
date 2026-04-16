@@ -6,6 +6,7 @@ import { drawCanvas } from '../lib/canvas';
 import { formatValue, parseValue, formatMax, formatStep } from '../lib/format';
 import { useHistory } from '../lib/history';
 import ResizableSplit from './ResizableSplit';
+import ProjectorTab from './projector/ProjectorTab';
 
 const MAX = MAX_VALUE;
 const CHANNEL_COLORS = ['#c43030', '#1a7a42', '#2060b0'];
@@ -590,9 +591,7 @@ export default function App() {
     </div>
         </div>
         {activeTab === 'projector' && (
-          <div className="projector-tab-placeholder" style={{ padding: 32, color: '#666' }}>
-            Projector tab — coming soon
-          </div>
+          <ProjectorTab currentChannels={channels} />
         )}
       </div>
     </div>

@@ -165,3 +165,12 @@
 .status-chip { background: #22c55e; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
 .upload-main-btn { background: #9a7b2e; color: white; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .disconnect-btn { background: rgba(196,48,48,0.2); color: #e08080; border: 1px solid #c43030; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.projector-tab { display: flex; flex-direction: column; height: 100%; background: #f7f6f3; }
+.projector-columns { display: grid; grid-template-columns: 280px 1fr; gap: 0; flex: 1; overflow: auto; }
+.projector-col-left { border-right: 1px solid #e0deda; padding: 16px; overflow-y: auto; }
+.projector-col-right { padding: 16px; overflow-y: auto; }
+.proj-section { margin-bottom: 20px; }
+.proj-btn-row { display: flex; gap: 6px; }
+.proj-toggle-btn { flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #f0efec; color: #555; cursor: pointer; font-size: 13px; }
+.proj-toggle-btn.active { background: #2060b0; color: white; border-color: #2060b0; }
+.proj-select-full { width: 100%; padding: 6px 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; }
