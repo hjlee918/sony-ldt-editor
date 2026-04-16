@@ -17,7 +17,6 @@ function createWindow(): void {
     title: 'Sony LDT Editor',
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
-      sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
     },
@@ -50,6 +49,7 @@ ipcMain.handle('projector:upload', async (event, slot: number, channels: [number
   await sdcp.upload(slot as 7 | 8 | 9 | 10, channels, (pct) => {
     event.sender.send('projector:upload-progress', pct);
   });
+  return 'ok';
 });
 
 // ── IPC: Detached canvas window ─────────────────────────────────────────────
@@ -65,7 +65,6 @@ ipcMain.handle('canvas:detach', () => {
     title: 'Sony LDT — Canvas',
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
-      sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
     },

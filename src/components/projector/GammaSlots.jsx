@@ -11,7 +11,7 @@ function activeSlotFromValue(val) {
   return null;
 }
 
-export default function GammaSlots({ status, onUpload, onUseSlot, uploadProgress }) {
+export default function GammaSlots({ status, onUpload, onUseSlot, uploadProgress, uploadingSlot }) {
   const activeSlot = activeSlotFromValue(status.gammaCorrection);
 
   return (
@@ -30,7 +30,7 @@ export default function GammaSlots({ status, onUpload, onUseSlot, uploadProgress
               disabled={isUploading}
               onClick={() => onUpload(slot.id)}
             >
-              {isUploading && isActive
+              {isUploading && slot.id === uploadingSlot
                 ? `${uploadProgress}%`
                 : '⬆ Upload'}
             </button>

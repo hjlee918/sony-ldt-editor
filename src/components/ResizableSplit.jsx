@@ -53,7 +53,7 @@ export default function ResizableSplit({ left, right }) {
       window.addEventListener('mousemove', onMove);
       window.addEventListener('mouseup', onUp);
     },
-    [leftWidth],
+    [],
   );
 
   const toggleFocus = useCallback(() => {

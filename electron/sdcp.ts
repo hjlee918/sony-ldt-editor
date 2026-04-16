@@ -93,6 +93,9 @@ export interface ProjectorStatus {
   advancedIris: number;
   nr: number;
   inputLagReduction: number;
+  power: number;
+  csCustomCyanRed: number;
+  csCustomMagGreen: number;
 }
 
 export class SdcpConnection extends EventEmitter {
@@ -250,6 +253,9 @@ export class SdcpConnection extends EventEmitter {
       this.get(0x00, 0x1d), // advancedIris
       this.get(0x00, 0x25), // nr
       this.get(0x00, 0x99), // inputLagReduction
+      this.get(0x01, 0x30), // power  → index 11
+      this.get(0x00, 0x76), // csCustomCyanRed  → index 12
+      this.get(0x00, 0x77), // csCustomMagGreen → index 13
     ]);
 
     const val = (i: number, fallback: number): number => {
@@ -270,6 +276,9 @@ export class SdcpConnection extends EventEmitter {
       advancedIris:       val(8, 0),
       nr:                 val(9, 0),
       inputLagReduction:  val(10, 0),
+      power:            val(11, 1),
+      csCustomCyanRed:  val(12, 0),
+      csCustomMagGreen: val(13, 0),
     };
   }
 
@@ -283,6 +292,10 @@ export class SdcpConnection extends EventEmitter {
     const total = CHANNEL_COUNT * CHUNKS_PER_CHANNEL + 1; // 12 data packets + 1 activation
     let step = 0;
 
+    // The projector's LDT table is 64 entries per channel (not 1024).
+    // We map our 1024-sample curve to 64 equidistant control points
+    // by stepping every 16th sample: curve[i * 16] for i = 0..63,
+    // sent as four 16-entry packets with startIndex 0/16/32/48.
     for (let ch = 0; ch < CHANNEL_COUNT; ch++) {
       const curve = channels[ch];
       for (let chunk = 0; chunk < CHUNKS_PER_CHANNEL; chunk++) {

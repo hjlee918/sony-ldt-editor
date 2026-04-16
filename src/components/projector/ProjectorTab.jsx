@@ -70,6 +70,7 @@ export default function ProjectorTab({ currentChannels }) {
             onUpload={handleUpload}
             onUseSlot={handleUseSlot}
             uploadProgress={uploadProgress}
+            uploadingSlot={selectedSlot}
           />
         </div>
         {/* Right column */}
