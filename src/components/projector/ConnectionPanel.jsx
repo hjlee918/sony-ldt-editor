@@ -8,8 +8,11 @@ export default function ConnectionPanel({ onConnect, lastIp, error }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setConnecting(true);
-    await onConnect(ip.trim(), password || undefined);
-    setConnecting(false);
+    try {
+      await onConnect(ip.trim(), password || undefined);
+    } finally {
+      setConnecting(false);
+    }
   };
 
   return (
