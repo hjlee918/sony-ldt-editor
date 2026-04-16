@@ -174,3 +174,5 @@
 .proj-toggle-btn { flex: 1; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #f0efec; color: #555; cursor: pointer; font-size: 13px; }
 .proj-toggle-btn.active { background: #2060b0; color: white; border-color: #2060b0; }
 .proj-select-full { width: 100%; padding: 6px 8px; font-size: 13px; border: 1px solid #ccc; border-radius: 4px; }
+
+.update-banner { background: #2060b0; color: white; padding: 8px 16px; text-align: center; cursor: pointer; font-size: 13px; }

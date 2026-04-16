@@ -39,6 +39,7 @@ export default function App() {
   const [bt1886Lb, setBt1886Lb] = useState(0.005);
   const [smoothPasses, setSmoothPasses] = useState(1);
   const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'projector'
+  const [updateReady, setUpdateReady] = useState(false);
 
   const lastFreePt = useRef(null);
   const canvasRef = useRef(null);
@@ -96,6 +97,12 @@ export default function App() {
     setChannels(nc); commitHistory(nc);
     if (mode !== 'free') setControlPts(curveToControlPoints(curve, getControlPointPositions(mode)));
   };
+
+  // ─── Auto-update ───
+  useEffect(() => {
+    if (!window.updater) return;
+    return window.updater.onUpdateReady(() => setUpdateReady(true));
+  }, []);
 
   // ─── Canvas resize & redraw ───
   useEffect(() => {
@@ -335,6 +342,11 @@ export default function App() {
       <div className="tab-content">
         <div style={{ display: activeTab === 'editor' ? 'contents' : 'none' }}>
     <div className="app">
+      {updateReady && (
+        <div className="update-banner" onClick={() => window.updater.installUpdate()}>
+          Update ready — click to restart and install
+        </div>
+      )}
       {notif && <div className="notif">{notif}</div>}
       <input ref={fileRef} type="file" accept=".ldt" style={{ display: 'none' }} onChange={doImport} />
 

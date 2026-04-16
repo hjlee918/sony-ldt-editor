@@ -33,3 +33,17 @@ contextBridge.exposeInMainWorld('canvasBridge', {
   },
   isDetached: () => new URLSearchParams(location.search).get('detached') === '1',
 });
+
+contextBridge.exposeInMainWorld('updater', {
+  onUpdateAvailable: (cb: () => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent) => cb();
+    ipcRenderer.on('update:available', listener);
+    return () => ipcRenderer.removeListener('update:available', listener);
+  },
+  onUpdateReady: (cb: () => void): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent) => cb();
+    ipcRenderer.on('update:ready', listener);
+    return () => ipcRenderer.removeListener('update:ready', listener);
+  },
+  installUpdate: () => ipcRenderer.send('update:install'),
+});

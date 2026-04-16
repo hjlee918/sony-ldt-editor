@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'path';
 import { is } from '@electron-toolkit/utils';
+import { autoUpdater } from 'electron-updater';
 import { SdcpConnection } from './sdcp';
 
 let mainWindow: BrowserWindow | null = null;
@@ -99,5 +100,19 @@ ipcMain.on('canvas:curve-sync', (event, data) => {
 
 // ── App lifecycle ───────────────────────────────────────────────────────────
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+  if (!is.dev) {
+    autoUpdater.checkForUpdatesAndNotify();
+    autoUpdater.on('update-available', () => {
+      mainWindow?.webContents.send('update:available');
+    });
+    autoUpdater.on('update-downloaded', () => {
+      mainWindow?.webContents.send('update:ready');
+    });
+  }
+});
+
+ipcMain.on('update:install', () => autoUpdater.quitAndInstall());
+
 app.on('window-all-closed', () => app.quit());
