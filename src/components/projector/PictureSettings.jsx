@@ -1,14 +1,3 @@
-// SDCP item codes (upper=0x00 for all standard settings)
-const ITEMS = {
-  brightness:       [0x00, 0x10],
-  contrast:         [0x00, 0x11],
-  colorTemp:        [0x00, 0x17],
-  colorSpace:       [0x00, 0x3b],
-  motionflow:       [0x00, 0x59],
-  hdr:              [0x00, 0x7c],
-  advancedIris:     [0x00, 0x1d],
-  nr:               [0x00, 0x25],
-};
 
 const COLOR_TEMP_OPTS = [
   { value: 0, label: 'D93' }, { value: 1, label: 'D75' }, { value: 2, label: 'D65' },
