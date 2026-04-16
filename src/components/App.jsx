@@ -5,6 +5,7 @@ import { generateGamma, generateLinear, generateSCurve, generatePQ, generateHLG,
 import { drawCanvas } from '../lib/canvas';
 import { formatValue, parseValue, formatMax, formatStep } from '../lib/format';
 import { useHistory } from '../lib/history';
+import ResizableSplit from './ResizableSplit';
 
 const MAX = MAX_VALUE;
 const CHANNEL_COLORS = ['#c43030', '#1a7a42', '#2060b0'];
@@ -353,7 +354,8 @@ export default function App() {
         </div>
       </div>
 
-      <div className="main">
+      <ResizableSplit
+        left={({ focused, onToggleFocus }) => (
         <div className="canvas-area">
           {/* Toolbar */}
           <div className="toolbar">
@@ -396,6 +398,14 @@ export default function App() {
             <input type="range" min={1} max={10} step={0.1} value={zoom} onChange={e => setZoom(+e.target.value)} style={{ width: 70 }} />
             <span style={{ fontSize: 12, color: 'var(--text2)', fontFamily: 'var(--mono)', minWidth: 32 }}>{zoom.toFixed(1)}×</span>
             {zoom > 1 && <button className="btn btn-sm" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>Fit</button>}
+            <button
+              className="toolbar-btn"
+              title="Focus canvas (F)"
+              onClick={onToggleFocus}
+              style={{ marginLeft: 'auto' }}
+            >
+              {focused ? '✕' : '⛶'}
+            </button>
           </div>
 
           {/* Canvas */}
@@ -462,8 +472,8 @@ export default function App() {
             </div>
           )}
         </div>
-
-        {/* Sidebar */}
+        )}
+        right={() => (
         <div className="sidebar">
           <div className="sb-section">
             <div className="sb-label" style={{ color: 'var(--text3)' }}>Standard Gamma</div>
@@ -555,7 +565,8 @@ export default function App() {
             </div>
           </div>
         </div>
-      </div>
+        )}
+      />
     </div>
         </div>
         {activeTab === 'projector' && (
