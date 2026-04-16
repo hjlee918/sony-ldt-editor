@@ -55,7 +55,7 @@ export function useProjector() {
       if (result === 'ok') {
         localStorage.setItem(STORAGE_IP, ip);
         setLastIp(ip);
-        const s = await window.projector.getStatus();
+        const s = await window.projector?.getStatus();
         setStatus(s);
         startPolling();
       } else {
@@ -74,26 +74,35 @@ export function useProjector() {
   }, [stopPolling]);
 
   const set = useCallback(async (upper, lower, value) => {
+    setError(null);
     const result = await window.projector?.set(upper, lower, value);
     if (result === 'ok') {
-      // Refresh status to reflect the change
-      const s = await window.projector.getStatus();
+      const s = await window.projector?.getStatus();
       setStatus(s);
+    } else if (result != null) {
+      setError(result);
     }
     return result;
   }, []);
 
   const upload = useCallback(async (slot, channels) => {
+    setError(null);
     setUploadProgress(0);
     const unsub = window.projector?.on('upload-progress', (pct) => {
       setUploadProgress(pct);
     });
+    let result;
     try {
-      await window.projector?.upload(slot, channels);
+      result = await window.projector?.upload(slot, channels);
+    } catch (err) {
+      const code = err?.message ?? 'err_upload';
+      setError(code);
+      result = code;
     } finally {
       unsub?.();
       setUploadProgress(null);
     }
+    return result;
   }, []);
 
   return { status, uploadProgress, error, lastIp, connect, disconnect, set, upload };
