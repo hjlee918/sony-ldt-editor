@@ -92,3 +92,31 @@
     .main { flex-direction: column; }
     .sidebar { width: 100%; max-height: 40vh; border-left: none; border-top: 1px solid var(--border); }
   }
+
+/* Tab bar */
+.app-shell { display: flex; flex-direction: column; height: 100vh; }
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  padding: 6px 12px 0;
+  background: #f0efec;
+  border-bottom: 1px solid #d8d6d0;
+  flex-shrink: 0;
+}
+.tab-btn {
+  padding: 6px 18px;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  background: #e0deda;
+  color: #666;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.tab-btn.active {
+  background: #fff;
+  color: #1a1a1a;
+  border-bottom: 2px solid #9a7b2e;
+}
+.tab-content { flex: 1; overflow: hidden; }

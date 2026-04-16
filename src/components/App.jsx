@@ -36,6 +36,7 @@ export default function App() {
   const [pqPreview, setPqPreview] = useState(null);
   const [bt1886Lb, setBt1886Lb] = useState(0.005);
   const [smoothPasses, setSmoothPasses] = useState(1);
+  const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'projector'
 
   const lastFreePt = useRef(null);
   const canvasRef = useRef(null);
@@ -301,6 +302,23 @@ export default function App() {
 
   // ─── Render ───
   return (
+    <div className="app-shell">
+      <div className="tab-bar">
+        <button
+          className={`tab-btn${activeTab === 'editor' ? ' active' : ''}`}
+          onClick={() => setActiveTab('editor')}
+        >
+          Editor
+        </button>
+        <button
+          className={`tab-btn${activeTab === 'projector' ? ' active' : ''}`}
+          onClick={() => setActiveTab('projector')}
+        >
+          Projector
+        </button>
+      </div>
+      <div className="tab-content">
+        <div style={{ display: activeTab === 'editor' ? 'contents' : 'none' }}>
     <div className="app">
       {notif && <div className="notif">{notif}</div>}
       <input ref={fileRef} type="file" accept=".ldt" style={{ display: 'none' }} onChange={doImport} />
@@ -537,6 +555,14 @@ export default function App() {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+        </div>
+        {activeTab === 'projector' && (
+          <div className="projector-tab-placeholder" style={{ padding: 32, color: '#666' }}>
+            Projector tab — coming soon
+          </div>
+        )}
       </div>
     </div>
   );
