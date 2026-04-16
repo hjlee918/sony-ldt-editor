@@ -7,8 +7,12 @@ contextBridge.exposeInMainWorld('projector', {
   getStatus: () => ipcRenderer.invoke('projector:getStatus'),
   set: (upper: number, lower: number, value: number) =>
     ipcRenderer.invoke('projector:set', upper, lower, value),
+  activateSlot: (slot: number) =>
+    ipcRenderer.invoke('projector:activateSlot', slot),
   upload: (slot: number, channels: [number[], number[], number[]]) =>
     ipcRenderer.invoke('projector:upload', slot, channels),
+  download: (slot: number) =>
+    ipcRenderer.invoke('projector:download', slot),
   on: (event: 'upload-progress', cb: (data: unknown) => void): (() => void) => {
     const channel = `projector:${event}`;
     const listener = (_e: Electron.IpcRendererEvent, data: unknown) => cb(data);

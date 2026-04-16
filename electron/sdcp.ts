@@ -30,6 +30,12 @@ interface LdtPacketOptions {
   values: number[]; // exactly 16 values, each 0–1023
 }
 
+interface LdtReadOptions {
+  slot: 7 | 8 | 9 | 10;
+  channel: 0 | 1 | 2;
+  startIndex: 0 | 16 | 32 | 48;
+}
+
 export function buildLdtPacket(opts: LdtPacketOptions): Buffer {
   const { slot, channel, startIndex, values } = opts;
   if (values.length !== 16) throw new Error('values must have exactly 16 entries');
@@ -45,6 +51,21 @@ export function buildLdtPacket(opts: LdtPacketOptions): Buffer {
     FIXED_PREFIX,
     Buffer.from([0x8c, 0x00, 0x80, 0x27, 0x00, 0x25]),
     payload,
+  ]);
+  return buildFrame(inner);
+}
+
+/** Request 16 values from a gamma slot (mirror of buildLdtPacket for reads). */
+export function buildLdtReadPacket(opts: LdtReadOptions): Buffer {
+  const { slot, channel, startIndex } = opts;
+  const inner = Buffer.concat([
+    FIXED_PREFIX,
+    Buffer.from([
+      0x8c, 0x01, 0x80, 0x07, 0x00, 0x05,
+      slot, channel,
+      (startIndex >> 8) & 0xff, startIndex & 0xff,
+      0x10, // count = 16
+    ]),
   ]);
   return buildFrame(inner);
 }
@@ -66,11 +87,14 @@ export function buildGetPacket(itemUpper: number, itemLower: number): Buffer {
 }
 
 export function buildSetPacket(itemUpper: number, itemLower: number, value: number): Buffer {
+  // SET command is 00 00 (not 00 03 — that's the SET *response* code).
+  // Payload: [itemUpper, itemLower, 0x02, valueHigh, valueLow] (5 bytes, header: 80 07 00 05)
   const inner = Buffer.concat([
     FIXED_PREFIX,
     Buffer.from([
-      0x00, 0x00, 0x80, 0x06, 0x00, 0x04,
+      0x00, 0x00, 0x80, 0x07, 0x00, 0x05,
       itemUpper, itemLower,
+      0x02,
       (value >> 8) & 0xff, value & 0xff,
     ]),
   ]);
@@ -91,8 +115,6 @@ export interface ProjectorStatus {
   hdr: number;
   advancedIris: number;
   nr: number;
-  inputLagReduction: number;
-  power: number;
   csCustomCyanRed: number;
   csCustomMagGreen: number;
 }
@@ -140,7 +162,7 @@ export class SdcpConnection extends EventEmitter {
         const idx = this.pendingResponses.findIndex((p) => p.reject === reject);
         if (idx !== -1) this.pendingResponses.splice(idx, 1);
         reject(new Error('err_timeout'));
-      }, 60_000);
+      }, 1_500);
       this.pendingResponses.push({
         resolve: (buf) => { clearTimeout(timer); resolve(buf); },
         reject: (err) => { clearTimeout(timer); reject(err); },
@@ -183,8 +205,6 @@ export class SdcpConnection extends EventEmitter {
     try {
       const frame = buildSetPacket(itemUpper, itemLower, value);
       await this.sendFrame(frame);
-      // sendFrame resolves when the projector sends a response frame
-      // Exact response parsing deferred to live projector verification
       return 'ok';
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'err_cmd';
@@ -207,45 +227,104 @@ export class SdcpConnection extends EventEmitter {
   }
 
   async getStatus(): Promise<ProjectorStatus> {
-    const results = await Promise.allSettled([
-      this.get(0x00, 0x22), // gammaCorrection
-      this.get(0x00, 0x10), // brightness
-      this.get(0x00, 0x11), // contrast
-      this.get(0x00, 0x17), // colorTemp
-      this.get(0x00, 0x3b), // colorSpace
-      this.get(0x00, 0x02), // calibPreset
-      this.get(0x00, 0x59), // motionflow
-      this.get(0x00, 0x7c), // hdr
-      this.get(0x00, 0x1d), // advancedIris
-      this.get(0x00, 0x25), // nr
-      this.get(0x00, 0x99), // inputLagReduction
-      this.get(0x01, 0x30), // power  → index 11
-      this.get(0x00, 0x76), // csCustomCyanRed  → index 12
-      this.get(0x00, 0x77), // csCustomMagGreen → index 13
-    ]);
-
-    const val = (i: number, fallback: number): number => {
-      const r = results[i];
-      return r.status === 'fulfilled' && r.value !== null ? r.value : fallback;
+    // Sequential GETs: sending all at once caused queue desync when the projector
+    // didn't respond to some items (e.g. set-only items), mismatching responses to promises.
+    const g = async (upper: number, lower: number, fallback: number): Promise<number> => {
+      const v = await this.get(upper, lower);
+      return v ?? fallback;
     };
+
+    const gammaCorrection = await g(0x00, 0x22, 0);
+    const brightness      = await g(0x00, 0x10, 50);
+    const contrast        = await g(0x00, 0x11, 50);
+    const colorTemp       = await g(0x00, 0x17, 2);
+    const colorSpace      = await g(0x00, 0x3b, 0);
+    const calibPreset     = await g(0x00, 0x02, 0);
+    const motionflow      = await g(0x00, 0x59, 0);
+    const hdr             = await g(0x00, 0x7c, 2);
+    const advancedIris    = await g(0x00, 0x1d, 0);
+    const nr              = await g(0x00, 0x25, 0);
+    // Only poll custom CS sliders when in Custom color space mode (value 6)
+    const csCustomCyanRed  = colorSpace === 6 ? await g(0x00, 0x76, 0) : 0;
+    const csCustomMagGreen = colorSpace === 6 ? await g(0x00, 0x77, 0) : 0;
 
     return {
       connected: true,
-      gammaCorrection:    val(0, 0),
-      brightness:         val(1, 50),
-      contrast:           val(2, 50),
-      colorTemp:          val(3, 2),
-      colorSpace:         val(4, 0),
-      calibPreset:        val(5, 0),
-      motionflow:         val(6, 0),
-      hdr:                val(7, 2),
-      advancedIris:       val(8, 0),
-      nr:                 val(9, 0),
-      inputLagReduction:  val(10, 0),
-      power:            val(11, 1),
-      csCustomCyanRed:  val(12, 0),
-      csCustomMagGreen: val(13, 0),
+      gammaCorrection,
+      brightness,
+      contrast,
+      colorTemp,
+      colorSpace,
+      calibPreset,
+      motionflow,
+      hdr,
+      advancedIris,
+      nr,
+      csCustomCyanRed,
+      csCustomMagGreen,
     };
+  }
+
+  async activateSlot(slot: 7 | 8 | 9 | 10): Promise<'ok' | ErrorCode> {
+    try {
+      const pkt = buildActivateSlotPacket(slot);
+      await this.sendFrame(pkt);
+      return 'ok';
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'err_cmd';
+      return (msg as ErrorCode) || 'err_cmd';
+    }
+  }
+
+  /**
+   * Download a gamma slot from the projector.
+   * Reads 12 chunks (3 channels × 4 chunks of 16 values) via the 8c 01 command
+   * and reconstructs a 1024-point curve per channel via linear interpolation.
+   */
+  async download(slot: 7 | 8 | 9 | 10): Promise<[number[], number[], number[]]> {
+    const channelPoints: number[][] = [[], [], []];
+
+    for (let ch = 0; ch < 3; ch++) {
+      for (let chunk = 0; chunk < 4; chunk++) {
+        const startIndex = (chunk * 16) as 0 | 16 | 32 | 48;
+        const pkt = buildLdtReadPacket({ slot, channel: ch as 0 | 1 | 2, startIndex });
+        const resp = await this.sendFrame(pkt);
+
+        // Response layout (frame offsets):
+        //   [0-9]  : SDCP header
+        //   [10-20]: FIXED_PREFIX (11 bytes)
+        //   [21-22]: cmd 8c 02
+        //   [23-24]: 80 29
+        //   [25-26]: 00 27 (length)
+        //   [27-28]: status
+        //   [29]   : slot
+        //   [30]   : channel
+        //   [31-32]: startIndex
+        //   [33]   : count
+        //   [34 + i*2]: value i (uint16 BE), i = 0..count-1
+        const count = resp[33];
+        for (let i = 0; i < count; i++) {
+          channelPoints[ch].push(resp.readUInt16BE(34 + i * 2));
+        }
+      }
+    }
+
+    // Reconstruct 1024-point curves from 64 control points (at positions 0,16,32,…,1008)
+    // via linear interpolation. Positions 1009-1023 hold the last control point value.
+    const curves = channelPoints.map((points) => {
+      const curve = new Array<number>(1024);
+      for (let x = 0; x < 1024; x++) {
+        const lo = Math.min(Math.floor(x / 16), 63);
+        const hi = Math.min(lo + 1, 63);
+        const t = (x - lo * 16) / 16;
+        curve[x] = Math.round(
+          Math.min(1023, Math.max(0, points[lo] + t * (points[hi] - points[lo]))),
+        );
+      }
+      return curve;
+    });
+
+    return curves as [number[], number[], number[]];
   }
 
   async upload(

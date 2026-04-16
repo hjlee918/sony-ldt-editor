@@ -5,6 +5,7 @@ import { generateGamma, generateLinear, generateSCurve, generatePQ, generateHLG,
 import { drawCanvas } from '../lib/canvas';
 import { formatValue, parseValue, formatMax, formatStep } from '../lib/format';
 import { useHistory } from '../lib/history';
+import { useProjector } from '../hooks/useProjector';
 import ResizableSplit from './ResizableSplit';
 import ProjectorTab from './projector/ProjectorTab';
 
@@ -40,6 +41,10 @@ export default function App() {
   const [smoothPasses, setSmoothPasses] = useState(1);
   const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'projector'
   const [updateReady, setUpdateReady] = useState(false);
+  const [editorUploadSlot, setEditorUploadSlot] = useState(10);
+  const [downloading, setDownloading] = useState(false);
+
+  const projector = useProjector();
 
   const lastFreePt = useRef(null);
   const canvasRef = useRef(null);
@@ -54,6 +59,21 @@ export default function App() {
 
   const notify = (m) => { setNotif(m); setTimeout(() => setNotif(null), 2500); };
   const commitHistory = (ch) => { history.push(ch); };
+
+  // ─── Projector download ───
+  const doDownload = async (slot) => {
+    setDownloading(true);
+    try {
+      const downloaded = await projector.download(slot);
+      if (downloaded) {
+        setChannels(downloaded); commitHistory(downloaded);
+        if (mode !== 'free') setControlPts(curveToControlPoints(downloaded[activeCh], getControlPointPositions(mode)));
+        notify(`Loaded: Gamma ${slot} from projector`);
+      }
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   // ─── Undo / Redo / Reset ───
   const doUndo = () => {
@@ -567,14 +587,58 @@ export default function App() {
             </button>
           </div>
 
+          <div className="sb-section">
+            <div className="sb-label" style={{ color: 'var(--blue)' }}>Projector Sync</div>
+            {projector.status.connected ? (
+              <>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  {[7, 8, 9, 10].map(slot => (
+                    <button
+                      key={slot}
+                      className={`mode-btn${editorUploadSlot === slot ? ' active' : ''}`}
+                      style={{ flex: 1, fontSize: 12 }}
+                      onClick={() => setEditorUploadSlot(slot)}
+                    >
+                      G{slot}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="btn btn-accent"
+                  style={{ width: '100%', marginBottom: 6 }}
+                  disabled={projector.uploadProgress !== null || downloading}
+                  onClick={() => projector.upload(editorUploadSlot, channels)}
+                >
+                  {projector.uploadProgress !== null
+                    ? `Uploading… ${projector.uploadProgress}%`
+                    : `Upload to Gamma ${editorUploadSlot}`}
+                </button>
+                <button
+                  className="btn"
+                  style={{ width: '100%' }}
+                  disabled={projector.uploadProgress !== null || downloading}
+                  onClick={() => doDownload(editorUploadSlot)}
+                >
+                  {downloading ? 'Downloading…' : `Download from Gamma ${editorUploadSlot}`}
+                </button>
+                {projector.error && (
+                  <div style={{ fontSize: 11, color: '#c43030', marginTop: 4 }}>{projector.error}</div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: 'var(--text3)', lineHeight: 1.5 }}>
+                Connect to your projector in the <strong>Projector</strong> tab to enable sync.
+              </div>
+            )}
+          </div>
+
           <div className="info-box" style={{ background: 'rgba(154,123,46,0.04)', border: '1px solid rgba(154,123,46,0.12)' }}>
             <h4 style={{ color: 'var(--accent)' }}>How to use</h4>
             <ol style={{ color: 'var(--text2)' }}>
               <li>Choose edit mode: 4pt / 10pt / 21pt / Free</li>
               <li>Select a preset or drag control points</li>
               <li>Fine-tune values in the table</li>
-              <li>Export As… → name your .ldt file</li>
-              <li>Open in Sony ImageDirector → upload</li>
+              <li>Connect projector → select slot → Upload</li>
             </ol>
           </div>
 
@@ -602,9 +666,9 @@ export default function App() {
       />
     </div>
         </div>
-        {activeTab === 'projector' && (
-          <ProjectorTab currentChannels={channels} />
-        )}
+        <div style={{ display: activeTab === 'projector' ? 'contents' : 'none' }}>
+          <ProjectorTab currentChannels={channels} projector={projector} />
+        </div>
       </div>
     </div>
   );

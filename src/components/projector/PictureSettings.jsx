@@ -1,135 +1,75 @@
+import { useState, useEffect } from 'react';
 
-const COLOR_TEMP_OPTS = [
-  { value: 0, label: 'D93' }, { value: 1, label: 'D75' }, { value: 2, label: 'D65' },
-  { value: 3, label: 'Custom1' }, { value: 4, label: 'Custom2' }, { value: 5, label: 'Custom3' },
-  { value: 6, label: 'Custom4' }, { value: 7, label: 'Custom5' }, { value: 9, label: 'D55' },
-];
+const COLOR_TEMP_OPTS  = [[0,'D93'],[1,'D75'],[2,'D65'],[3,'Custom1'],[4,'Custom2'],[5,'Custom3'],[6,'Custom4'],[7,'Custom5'],[9,'D55']];
+const COLOR_SPACE_OPTS = [[0,'BT.709'],[3,'CS1'],[4,'CS2'],[5,'CS3'],[6,'Custom'],[8,'BT.2020']];
+const MOTIONFLOW_OPTS  = [[0,'Off'],[1,'Smooth High'],[2,'Smooth Low'],[3,'Impulse'],[4,'Combination'],[5,'True Cinema']];
+const HDR_OPTS         = [[0,'Off'],[1,'On'],[2,'Auto']];
+const IRIS_OPTS        = [[0,'Off'],[2,'Full'],[3,'Limited']];
+const NR_OPTS          = [[0,'Off'],[1,'Low'],[2,'Medium'],[3,'High'],[4,'Auto']];
 
-const COLOR_SPACE_OPTS = [
-  { value: 0, label: 'BT.709' }, { value: 3, label: 'CS1' }, { value: 4, label: 'CS2' },
-  { value: 5, label: 'CS3' }, { value: 6, label: 'Custom' }, { value: 8, label: 'BT.2020' },
-];
+function sdcpToSigned(val) { return val > 0x7fff ? val - 0x10000 : val; }
+function signedToSdcp(val) { return val < 0 ? val + 0x10000 : val; }
 
-const MOTIONFLOW_OPTS = [
-  { value: 0, label: 'Off' }, { value: 1, label: 'Smooth High' }, { value: 2, label: 'Smooth Low' },
-  { value: 3, label: 'Impulse' }, { value: 4, label: 'Combination' }, { value: 5, label: 'True Cinema' },
-];
-
-const HDR_OPTS = [
-  { value: 0, label: 'Off' }, { value: 1, label: 'On' }, { value: 2, label: 'Auto' },
-];
-
-const IRIS_OPTS = [
-  { value: 0, label: 'Off' }, { value: 2, label: 'Full' }, { value: 3, label: 'Limited' },
-];
-
-const NR_OPTS = [
-  { value: 0, label: 'Off' }, { value: 1, label: 'Low' }, { value: 2, label: 'Medium' },
-  { value: 3, label: 'High' }, { value: 4, label: 'Auto' },
-];
-
-// Color correction: 6 axes × 3 params. Item codes 00h 87h-98h (see spec table).
-const CC_AXES = ['Red', 'Yellow', 'Green', 'Cyan', 'Blue', 'Magenta'];
-const CC_PARAMS = ['Hue', 'Sat', 'Bri'];
-// Item codes start at 0x87 for Red Hue, sequential through 0x98 for Magenta Brightness
-function ccItemCode(axisIndex, paramIndex) {
-  return 0x87 + axisIndex * 3 + paramIndex;
-}
-function ccRange(paramIndex) {
-  // Hue/Sat: -50 to +50 (FFCEh-0032h), Bri: -30 to +30 (FFE2h-001Eh)
-  return paramIndex < 2 ? { min: -50, max: 50 } : { min: -30, max: 30 };
-}
-function sdcpToSigned(val) {
-  // Convert uint16 SDCP value to signed int16
-  return val > 0x7fff ? val - 0x10000 : val;
-}
-function signedToSdcp(val) {
-  return val < 0 ? val + 0x10000 : val;
-}
-
-function Dropdown({ label, value, opts, upper, lower, onSet }) {
+/** Range slider — fires onCommit only on pointer-up, not on every pixel. */
+function Slider({ label, value, min, max, onCommit }) {
+  const [local, setLocal] = useState(value);
+  useEffect(() => { setLocal(value); }, [value]);
   return (
-    <div className="proj-row">
+    <div className="proj-ctrl-row">
       <span className="proj-label">{label}</span>
-      <select
-        value={value ?? ''}
-        onChange={(e) => onSet(upper, lower, parseInt(e.target.value))}
-        className="proj-select"
-      >
-        {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      <div className="proj-slider-group">
+        <input
+          type="range" min={min} max={max} value={local}
+          onChange={e => setLocal(Number(e.target.value))}
+          onPointerUp={e => onCommit(Number(e.target.value))}
+        />
+        <span className="proj-slider-val">{local}</span>
+      </div>
+    </div>
+  );
+}
+
+function Select({ label, value, options, onChange }) {
+  return (
+    <div className="proj-ctrl-row">
+      <span className="proj-label">{label}</span>
+      <select className="proj-select" value={value} onChange={e => onChange(Number(e.target.value))}>
+        {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
     </div>
   );
 }
 
-function Slider({ label, value, min, max, upper, lower, onSet, transform }) {
-  return (
-    <div className="proj-slider-row">
-      <div className="proj-slider-header">
-        <span className="proj-label">{label}</span>
-        <span className="proj-value">{value ?? '–'}</span>
-      </div>
-      <input
-        type="range" min={min} max={max}
-        value={value ?? min}
-        onChange={(e) => {
-          const v = parseInt(e.target.value);
-          onSet(upper, lower, transform ? transform(v) : v);
-        }}
-        className="proj-slider"
-      />
-    </div>
-  );
-}
-
 export default function PictureSettings({ status, onSet }) {
-  const isCustomColorSpace = status.colorSpace === 6;
+  const isCustomCS = status.colorSpace === 6;
 
   return (
     <div className="proj-picture-settings">
       <div className="proj-section-label">PICTURE</div>
-      <Slider label="Brightness" value={status.brightness} min={0} max={100} upper={0x00} lower={0x10} onSet={onSet} />
-      <Slider label="Contrast"   value={status.contrast}   min={0} max={100} upper={0x00} lower={0x11} onSet={onSet} />
-      <Dropdown label="Color Temp"  value={status.colorTemp}  opts={COLOR_TEMP_OPTS}  upper={0x00} lower={0x17} onSet={onSet} />
-      <Dropdown label="Color Space" value={status.colorSpace} opts={COLOR_SPACE_OPTS} upper={0x00} lower={0x3b} onSet={onSet} />
-      {isCustomColorSpace && (
+      <Slider label="Brightness"    value={status.brightness ?? 50}   min={0} max={100}
+        onCommit={v => onSet(0x00, 0x10, v)} />
+      <Slider label="Contrast"      value={status.contrast ?? 50}     min={0} max={100}
+        onCommit={v => onSet(0x00, 0x11, v)} />
+      <Select label="Color Temp"    value={status.colorTemp ?? 2}     options={COLOR_TEMP_OPTS}
+        onChange={v => onSet(0x00, 0x17, v)} />
+      <Select label="Color Space"   value={status.colorSpace ?? 0}    options={COLOR_SPACE_OPTS}
+        onChange={v => onSet(0x00, 0x3b, v)} />
+      {isCustomCS && (
         <>
-          <Slider label="Cyan–Red"      value={sdcpToSigned(status.csCustomCyanRed ?? 0)}    min={-50} max={50} upper={0x00} lower={0x76} onSet={onSet} transform={signedToSdcp} />
-          <Slider label="Magenta–Green" value={sdcpToSigned(status.csCustomMagGreen ?? 0)}   min={-50} max={50} upper={0x00} lower={0x77} onSet={onSet} transform={signedToSdcp} />
+          <Slider label="Cyan–Red"      value={sdcpToSigned(status.csCustomCyanRed ?? 0)}  min={-100} max={100}
+            onCommit={v => onSet(0x00, 0x76, signedToSdcp(v))} />
+          <Slider label="Magenta–Green" value={sdcpToSigned(status.csCustomMagGreen ?? 0)} min={-100} max={100}
+            onCommit={v => onSet(0x00, 0x77, signedToSdcp(v))} />
         </>
       )}
-      <Dropdown label="Motionflow"   value={status.motionflow}       opts={MOTIONFLOW_OPTS} upper={0x00} lower={0x59} onSet={onSet} />
-      <Dropdown label="HDR"          value={status.hdr}              opts={HDR_OPTS}        upper={0x00} lower={0x7c} onSet={onSet} />
-      <Dropdown label="Advanced Iris" value={status.advancedIris}   opts={IRIS_OPTS}       upper={0x00} lower={0x1d} onSet={onSet} />
-      <Dropdown label="NR"           value={status.nr}               opts={NR_OPTS}         upper={0x00} lower={0x25} onSet={onSet} />
-
-      <div className="proj-section-label" style={{ marginTop: 16 }}>COLOR CORRECTION</div>
-      <div className="cc-grid">
-        <div className="cc-header-row">
-          <span></span>
-          {CC_PARAMS.map(p => <span key={p} className="cc-col-label">{p}</span>)}
-        </div>
-        {CC_AXES.map((axis, ai) => (
-          <div key={axis} className="cc-row">
-            <span className="cc-axis-label">{axis}</span>
-            {CC_PARAMS.map((_, pi) => {
-              const { min, max } = ccRange(pi);
-              const rawVal = status[`cc_${axis.toLowerCase()}_${CC_PARAMS[pi].toLowerCase()}`] ?? 0;
-              const signedVal = sdcpToSigned(rawVal);
-              return (
-                <input
-                  key={pi}
-                  type="range"
-                  min={min} max={max}
-                  value={signedVal}
-                  onChange={(e) => onSet(0x00, ccItemCode(ai, pi), signedToSdcp(parseInt(e.target.value)))}
-                  className="cc-slider"
-                />
-              );
-            })}
-          </div>
-        ))}
-      </div>
+      <Select label="Motionflow"    value={status.motionflow ?? 0}    options={MOTIONFLOW_OPTS}
+        onChange={v => onSet(0x00, 0x59, v)} />
+      <Select label="HDR"           value={status.hdr ?? 2}           options={HDR_OPTS}
+        onChange={v => onSet(0x00, 0x7c, v)} />
+      <Select label="Advanced Iris" value={status.advancedIris ?? 0}  options={IRIS_OPTS}
+        onChange={v => onSet(0x00, 0x1d, v)} />
+      <Select label="NR"            value={status.nr ?? 0}            options={NR_OPTS}
+        onChange={v => onSet(0x00, 0x25, v)} />
     </div>
   );
 }

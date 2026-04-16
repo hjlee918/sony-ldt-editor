@@ -23,7 +23,7 @@ export default function GammaSlots({ status, onUpload, onUseSlot, uploadProgress
         return (
           <div key={slot.id} className={`gamma-slot-row${isActive ? ' active' : ''}`}>
             <span className="slot-label">
-              {slot.label}{isActive ? ' ▶' : ''}
+              {slot.label}
             </span>
             <button
               className="slot-btn upload"

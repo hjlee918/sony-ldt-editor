@@ -137,17 +137,23 @@
 
 .proj-picture-settings { padding: 12px; }
 .proj-section-label { font-size: 11px; letter-spacing: 1px; color: #999; margin-bottom: 8px; font-weight: 600; }
-.proj-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .proj-label { font-size: 13px; color: #444; }
-.proj-select { font-size: 12px; padding: 2px 6px; border: 1px solid #ccc; border-radius: 4px; }
+.proj-readonly-value { font-size: 13px; color: #666; font-family: var(--font-mono, monospace); }
+.proj-ctrl-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; }
+.proj-select { font-size: 12px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; background: white; color: #333; cursor: pointer; }
+.proj-slider-group { display: flex; align-items: center; gap: 6px; }
+.proj-slider-group input[type=range] { width: 90px; }
+.proj-slider-val { font-size: 12px; color: #555; font-family: var(--font-mono, monospace); width: 28px; text-align: right; }
 .proj-slider-row { margin-bottom: 10px; }
 .proj-slider-header { display: flex; justify-content: space-between; margin-bottom: 2px; }
 .proj-value { font-size: 12px; color: #666; font-family: var(--font-mono, monospace); }
 .proj-slider { width: 100%; }
+.cc-readonly-grid { display: grid; grid-template-columns: 60px repeat(3, 1fr); gap: 4px; }
 .cc-grid { display: grid; grid-template-columns: 60px repeat(3, 1fr); gap: 4px; }
 .cc-header-row, .cc-row { display: contents; }
 .cc-col-label { font-size: 10px; color: #999; text-align: center; }
 .cc-axis-label { font-size: 12px; color: #444; align-self: center; }
+.cc-readonly-val { font-size: 11px; color: #666; font-family: var(--font-mono, monospace); text-align: center; align-self: center; }
 .cc-slider { width: 100%; }
 
 .projector-status-bar {
@@ -163,6 +169,7 @@
 .status-info { color: #aaa; }
 .status-info.dimmed { color: #666; }
 .status-chip { background: #22c55e; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.status-error { background: rgba(196,48,48,0.15); color: #e08080; padding: 2px 8px; border-radius: 4px; font-size: 11px; }
 .upload-main-btn { background: #9a7b2e; color: white; border: none; padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; }
 .disconnect-btn { background: rgba(196,48,48,0.2); color: #e08080; border: 1px solid #c43030; padding: 4px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; }
 .projector-tab { display: flex; flex-direction: column; height: 100%; background: #f7f6f3; }

@@ -3,7 +3,6 @@ import ConnectionPanel from './ConnectionPanel';
 import ProjectorStatusBar from './ProjectorStatusBar';
 import GammaSlots from './GammaSlots';
 import PictureSettings from './PictureSettings';
-import { useProjector } from '../../hooks/useProjector';
 
 const CALIB_OPTS = [
   { value: 0, label: 'Cinema Film 1' }, { value: 1, label: 'Cinema Film 2' },
@@ -12,8 +11,8 @@ const CALIB_OPTS = [
   { value: 8, label: 'User' },
 ];
 
-export default function ProjectorTab({ currentChannels }) {
-  const { status, uploadProgress, error, lastIp, connect, disconnect, set, upload } = useProjector();
+export default function ProjectorTab({ currentChannels, projector }) {
+  const { status, uploadProgress, error, lastIp, connect, disconnect, set, activateSlot, upload } = projector;
   const [selectedSlot, setSelectedSlot] = useState(10);
 
   const handleUpload = (slot) => {
@@ -23,7 +22,8 @@ export default function ProjectorTab({ currentChannels }) {
   };
 
   const handleUseSlot = (slot) => {
-    // Gamma Correction item: 00h 22h, values 0007h-000Ah for G7-G10
+    // SET item 00 22 (Gamma Correction) to the target slot value (7–10).
+    // This is how ImageDirector changes the active gamma slot.
     set(0x00, 0x22, slot);
   };
 
@@ -35,6 +35,7 @@ export default function ProjectorTab({ currentChannels }) {
     <div className="projector-tab">
       <ProjectorStatusBar
         status={status}
+        error={error}
         onDisconnect={disconnect}
         onUpload={handleUpload}
         selectedUploadSlot={selectedSlot}
@@ -43,24 +44,12 @@ export default function ProjectorTab({ currentChannels }) {
         {/* Left column */}
         <div className="projector-col-left">
           <div className="proj-section">
-            <div className="proj-section-label">POWER</div>
-            <div className="proj-btn-row">
-              <button
-                className={`proj-toggle-btn${status.power === 1 ? ' active' : ''}`}
-                onClick={() => set(0x01, 0x30, 0x0001)}
-              >ON</button>
-              <button
-                className={`proj-toggle-btn${status.power !== 1 ? ' active' : ''}`}
-                onClick={() => set(0x01, 0x30, 0x0000)}
-              >Standby</button>
-            </div>
-          </div>
-          <div className="proj-section">
             <div className="proj-section-label">CALIB PRESET</div>
             <select
-              className="proj-select-full"
+              className="proj-select"
+              style={{ width: '100%' }}
               value={status.calibPreset ?? 0}
-              onChange={(e) => set(0x00, 0x02, parseInt(e.target.value))}
+              onChange={e => set(0x00, 0x02, Number(e.target.value))}
             >
               {CALIB_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>

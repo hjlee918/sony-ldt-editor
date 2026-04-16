@@ -45,12 +45,20 @@ ipcMain.handle('projector:set', (_e, upper: number, lower: number, value: number
   sdcp.set(upper, lower, value),
 );
 
+ipcMain.handle('projector:activateSlot', (_e, slot: number) =>
+  sdcp.activateSlot(slot as 7 | 8 | 9 | 10),
+);
+
 ipcMain.handle('projector:upload', async (event, slot: number, channels: [number[], number[], number[]]) => {
   await sdcp.upload(slot as 7 | 8 | 9 | 10, channels, (pct) => {
     event.sender.send('projector:upload-progress', pct);
   });
   return 'ok';
 });
+
+ipcMain.handle('projector:download', (_e, slot: number) =>
+  sdcp.download(slot as 7 | 8 | 9 | 10),
+);
 
 // ── IPC: Detached canvas window ─────────────────────────────────────────────
 

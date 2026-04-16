@@ -6,16 +6,14 @@ function gammaLabel(val) {
   return `${val}`;
 }
 
-export default function ProjectorStatusBar({ status, onDisconnect, onUpload, selectedUploadSlot }) {
+export default function ProjectorStatusBar({ status, error, onDisconnect, onUpload, selectedUploadSlot }) {
   if (!status.connected) return null;
   return (
     <div className="projector-status-bar">
       <span className="status-dot connected">●</span>
       <span className="status-info">VPL-VW385ES</span>
-      <span className="status-chip">
-        {status.power === 1 ? '⚡ ON' : '◻ STBY'}
-      </span>
       <span className="status-info dimmed">Gamma: {gammaLabel(status.gammaCorrection)}</span>
+      {error && <span className="status-error">{error}</span>}
       <span style={{ flex: 1 }} />
       <button className="upload-main-btn" onClick={() => onUpload(selectedUploadSlot)}>
         ⬆ Upload to {GAMMA_LABELS[selectedUploadSlot] ?? 'Slot'}
