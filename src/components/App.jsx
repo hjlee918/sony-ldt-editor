@@ -5,6 +5,9 @@ import { generateGamma, generateLinear, generateSCurve, generatePQ, generateHLG,
 import { drawCanvas } from '../lib/canvas';
 import { formatValue, parseValue, formatMax, formatStep } from '../lib/format';
 import { useHistory } from '../lib/history';
+import { useProjector } from '../hooks/useProjector';
+import ResizableSplit from './ResizableSplit';
+import ProjectorTab from './projector/ProjectorTab';
 
 const MAX = MAX_VALUE;
 const CHANNEL_COLORS = ['#c43030', '#1a7a42', '#2060b0'];
@@ -36,6 +39,12 @@ export default function App() {
   const [pqPreview, setPqPreview] = useState(null);
   const [bt1886Lb, setBt1886Lb] = useState(0.005);
   const [smoothPasses, setSmoothPasses] = useState(1);
+  const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'projector'
+  const [updateReady, setUpdateReady] = useState(false);
+  const [editorUploadSlot, setEditorUploadSlot] = useState(10);
+  const [downloading, setDownloading] = useState(false);
+
+  const projector = useProjector();
 
   const lastFreePt = useRef(null);
   const canvasRef = useRef(null);
@@ -50,6 +59,21 @@ export default function App() {
 
   const notify = (m) => { setNotif(m); setTimeout(() => setNotif(null), 2500); };
   const commitHistory = (ch) => { history.push(ch); };
+
+  // ─── Projector download ───
+  const doDownload = async (slot) => {
+    setDownloading(true);
+    try {
+      const downloaded = await projector.download(slot);
+      if (downloaded) {
+        setChannels(downloaded); commitHistory(downloaded);
+        if (mode !== 'free') setControlPts(curveToControlPoints(downloaded[activeCh], getControlPointPositions(mode)));
+        notify(`Loaded: Gamma ${slot} from projector`);
+      }
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   // ─── Undo / Redo / Reset ───
   const doUndo = () => {
@@ -94,6 +118,12 @@ export default function App() {
     if (mode !== 'free') setControlPts(curveToControlPoints(curve, getControlPointPositions(mode)));
   };
 
+  // ─── Auto-update ───
+  useEffect(() => {
+    if (!window.updater) return;
+    return window.updater.onUpdateReady(() => setUpdateReady(true));
+  }, []);
+
   // ─── Canvas resize & redraw ───
   useEffect(() => {
     const c = canvasRef.current; if (!c) return;
@@ -110,6 +140,19 @@ export default function App() {
     const c = canvasRef.current; if (!c) return;
     drawCanvas(c, channels, activeCh, zoom, pan, mode !== 'free' ? controlPts : null, activePointIdx, mode, fmtVal, showCompare ? compareChannels : null, pqPreview);
   }, [channels, activeCh, zoom, pan, controlPts, activePointIdx, mode, displayFmt, compareChannels, showCompare, pqPreview]);
+
+  // ─── Detached canvas sync ───
+  useEffect(() => {
+    if (!window.canvasBridge || window.canvasBridge.isDetached()) return;
+    window.canvasBridge.sendCurveSync({ channels });
+  }, [channels]);
+
+  useEffect(() => {
+    if (!window.canvasBridge) return;
+    return window.canvasBridge.onDetachClosed(() => {
+      // detached window closed — no UI state to reset currently
+    });
+  }, []);
 
   // ─── Keyboard shortcuts ───
   useEffect(() => {
@@ -301,7 +344,29 @@ export default function App() {
 
   // ─── Render ───
   return (
+    <div className="app-shell">
+      <div className="tab-bar">
+        <button
+          className={`tab-btn${activeTab === 'editor' ? ' active' : ''}`}
+          onClick={() => setActiveTab('editor')}
+        >
+          Editor
+        </button>
+        <button
+          className={`tab-btn${activeTab === 'projector' ? ' active' : ''}`}
+          onClick={() => setActiveTab('projector')}
+        >
+          Projector
+        </button>
+      </div>
+      <div className="tab-content">
+        <div style={{ display: activeTab === 'editor' ? 'contents' : 'none' }}>
     <div className="app">
+      {updateReady && (
+        <div className="update-banner" onClick={() => window.updater.installUpdate()}>
+          Update ready — click to restart and install
+        </div>
+      )}
       {notif && <div className="notif">{notif}</div>}
       <input ref={fileRef} type="file" accept=".ldt" style={{ display: 'none' }} onChange={doImport} />
 
@@ -335,7 +400,8 @@ export default function App() {
         </div>
       </div>
 
-      <div className="main">
+      <ResizableSplit
+        left={({ focused, onToggleFocus }) => (
         <div className="canvas-area">
           {/* Toolbar */}
           <div className="toolbar">
@@ -378,6 +444,21 @@ export default function App() {
             <input type="range" min={1} max={10} step={0.1} value={zoom} onChange={e => setZoom(+e.target.value)} style={{ width: 70 }} />
             <span style={{ fontSize: 12, color: 'var(--text2)', fontFamily: 'var(--mono)', minWidth: 32 }}>{zoom.toFixed(1)}×</span>
             {zoom > 1 && <button className="btn btn-sm" onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}>Fit</button>}
+            <button
+              className="toolbar-btn"
+              title="Detach canvas to second window"
+              onClick={() => window.canvasBridge?.detach()}
+            >
+              ⧉
+            </button>
+            <button
+              className="toolbar-btn"
+              title="Focus canvas (F)"
+              onClick={onToggleFocus}
+              style={{ marginLeft: 'auto' }}
+            >
+              {focused ? '✕' : '⛶'}
+            </button>
           </div>
 
           {/* Canvas */}
@@ -444,8 +525,8 @@ export default function App() {
             </div>
           )}
         </div>
-
-        {/* Sidebar */}
+        )}
+        right={() => (
         <div className="sidebar">
           <div className="sb-section">
             <div className="sb-label" style={{ color: 'var(--text3)' }}>Standard Gamma</div>
@@ -506,14 +587,58 @@ export default function App() {
             </button>
           </div>
 
+          <div className="sb-section">
+            <div className="sb-label" style={{ color: 'var(--blue)' }}>Projector Sync</div>
+            {projector.status.connected ? (
+              <>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  {[7, 8, 9, 10].map(slot => (
+                    <button
+                      key={slot}
+                      className={`mode-btn${editorUploadSlot === slot ? ' active' : ''}`}
+                      style={{ flex: 1, fontSize: 12 }}
+                      onClick={() => setEditorUploadSlot(slot)}
+                    >
+                      G{slot}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="btn btn-accent"
+                  style={{ width: '100%', marginBottom: 6 }}
+                  disabled={projector.uploadProgress !== null || downloading}
+                  onClick={() => projector.upload(editorUploadSlot, channels)}
+                >
+                  {projector.uploadProgress !== null
+                    ? `Uploading… ${projector.uploadProgress}%`
+                    : `Upload to Gamma ${editorUploadSlot}`}
+                </button>
+                <button
+                  className="btn"
+                  style={{ width: '100%' }}
+                  disabled={projector.uploadProgress !== null || downloading}
+                  onClick={() => doDownload(editorUploadSlot)}
+                >
+                  {downloading ? 'Downloading…' : `Download from Gamma ${editorUploadSlot}`}
+                </button>
+                {projector.error && (
+                  <div style={{ fontSize: 11, color: '#c43030', marginTop: 4 }}>{projector.error}</div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: 12, color: 'var(--text3)', lineHeight: 1.5 }}>
+                Connect to your projector in the <strong>Projector</strong> tab to enable sync.
+              </div>
+            )}
+          </div>
+
           <div className="info-box" style={{ background: 'rgba(154,123,46,0.04)', border: '1px solid rgba(154,123,46,0.12)' }}>
             <h4 style={{ color: 'var(--accent)' }}>How to use</h4>
             <ol style={{ color: 'var(--text2)' }}>
               <li>Choose edit mode: 4pt / 10pt / 21pt / Free</li>
               <li>Select a preset or drag control points</li>
               <li>Fine-tune values in the table</li>
-              <li>Export As… → name your .ldt file</li>
-              <li>Open in Sony ImageDirector → upload</li>
+              <li>Connect projector → select slot → Upload</li>
             </ol>
           </div>
 
@@ -536,6 +661,13 @@ export default function App() {
               Compatible: VPL-VW260/360/385ES
             </div>
           </div>
+        </div>
+        )}
+      />
+    </div>
+        </div>
+        <div style={{ display: activeTab === 'projector' ? 'contents' : 'none' }}>
+          <ProjectorTab currentChannels={channels} projector={projector} />
         </div>
       </div>
     </div>

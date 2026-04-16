@@ -1,20 +1,65 @@
 {
-  "name": "sony-ldt-gamma-editor",
+  "name": "sony-ldt-editor",
   "private": true,
   "version": "1.0.0",
-  "description": "Gamma curve editor for Sony VPL-VW projectors — generates .ldt files for ImageDirector",
-  "type": "module",
+  "description": "Gamma curve editor for Sony VPL-VW projectors",
+  "main": "./out/main/main.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "build:mac": "electron-vite build && electron-builder --mac",
+    "build:win": "electron-vite build && electron-builder --win",
+    "preview": "electron-vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@electron-toolkit/utils": "^4.0.0",
+    "electron-updater": "^6.8.3",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
+    "@types/node": "^20.19.39",
     "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^8.0.3"
+    "electron": "^29.4.6",
+    "electron-builder": "^24.13.3",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vitest": "^1.6.1"
+  },
+  "build": {
+    "appId": "com.sonyldteditor.app",
+    "productName": "Sony LDT Editor",
+    "directories": {
+      "buildResources": "resources"
+    },
+    "files": [
+      "out/**/*"
+    ],
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["universal"] }],
+      "category": "public.app-category.video",
+      "icon": "resources/icon.icns"
+    },
+    "win": {
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "zip",  "arch": ["x64"] }
+      ],
+      "icon": "resources/icon.ico"
+    },
+    "nsis": {
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "shortcutName": "Sony LDT Editor",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "OWNER",
+      "repo": "sony-ldt-editor"
+    }
   }
 }
