@@ -209,4 +209,104 @@ export class SdcpConnection extends EventEmitter {
   isConnected(): boolean {
     return this.socket !== null && !this.socket.destroyed;
   }
+
+  async set(itemUpper: number, itemLower: number, value: number): Promise<'ok' | ErrorCode> {
+    try {
+      const frame = buildSetPacket(itemUpper, itemLower, value);
+      await this.sendFrame(frame);
+      // sendFrame resolves when the projector sends a response frame
+      // Exact response parsing deferred to live projector verification
+      return 'ok';
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'err_cmd';
+      return (msg as ErrorCode) || 'err_cmd';
+    }
+  }
+
+  async get(itemUpper: number, itemLower: number): Promise<number | null> {
+    try {
+      const frame = buildGetPacket(itemUpper, itemLower);
+      const resp = await this.sendFrame(frame);
+      // Response inner data starts at byte 10. Last 2 bytes before checksum+ETX are the value.
+      // frame: [10-byte header][inner_data][checksum][5a]
+      // value is at resp[resp.length - 4] and resp[resp.length - 3] (before checksum and ETX)
+      if (resp.length < 14) return null;
+      return resp.readUInt16BE(resp.length - 4);
+    } catch {
+      return null;
+    }
+  }
+
+  async getStatus(): Promise<ProjectorStatus> {
+    const results = await Promise.allSettled([
+      this.get(0x00, 0x22), // gammaCorrection
+      this.get(0x00, 0x10), // brightness
+      this.get(0x00, 0x11), // contrast
+      this.get(0x00, 0x17), // colorTemp
+      this.get(0x00, 0x3b), // colorSpace
+      this.get(0x00, 0x02), // calibPreset
+      this.get(0x00, 0x59), // motionflow
+      this.get(0x00, 0x7c), // hdr
+      this.get(0x00, 0x1d), // advancedIris
+      this.get(0x00, 0x25), // nr
+      this.get(0x00, 0x99), // inputLagReduction
+    ]);
+
+    const val = (i: number, fallback: number): number => {
+      const r = results[i];
+      return r.status === 'fulfilled' && r.value !== null ? r.value : fallback;
+    };
+
+    return {
+      connected: true,
+      gammaCorrection:    val(0, 0),
+      brightness:         val(1, 50),
+      contrast:           val(2, 50),
+      colorTemp:          val(3, 2),
+      colorSpace:         val(4, 0),
+      calibPreset:        val(5, 0),
+      motionflow:         val(6, 0),
+      hdr:                val(7, 2),
+      advancedIris:       val(8, 0),
+      nr:                 val(9, 0),
+      inputLagReduction:  val(10, 0),
+    };
+  }
+
+  async upload(
+    slot: 7 | 8 | 9 | 10,
+    channels: [number[], number[], number[]],
+    onProgress?: (pct: number) => void,
+  ): Promise<void> {
+    const CHANNEL_COUNT = 3;
+    const CHUNKS_PER_CHANNEL = 4;
+    const total = CHANNEL_COUNT * CHUNKS_PER_CHANNEL + 1; // 12 data packets + 1 activation
+    let step = 0;
+
+    for (let ch = 0; ch < CHANNEL_COUNT; ch++) {
+      const curve = channels[ch];
+      for (let chunk = 0; chunk < CHUNKS_PER_CHANNEL; chunk++) {
+        const startIndex = (chunk * 16) as 0 | 16 | 32 | 48;
+        // Sample every 16th entry from the 1024-entry curve (64 control points total per channel)
+        const values = Array.from({ length: 16 }, (_, i) =>
+          Math.round(Math.min(1023, Math.max(0, curve[(startIndex + i) * 16] ?? 0))),
+        );
+        const pkt = buildLdtPacket({
+          slot,
+          channel: ch as 0 | 1 | 2,
+          startIndex,
+          values,
+        });
+        await this.sendFrame(pkt);
+        step++;
+        onProgress?.(Math.round((step / total) * 100));
+      }
+    }
+
+    // Activate the slot on the projector
+    const activationPkt = buildActivateSlotPacket(slot);
+    await this.sendFrame(activationPkt);
+    step++;
+    onProgress?.(100);
+  }
 }
