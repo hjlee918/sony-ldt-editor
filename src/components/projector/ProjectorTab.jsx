@@ -2,18 +2,14 @@ import { useState } from 'react';
 import ConnectionPanel from './ConnectionPanel';
 import ProjectorStatusBar from './ProjectorStatusBar';
 import GammaSlots from './GammaSlots';
-import PictureSettings from './PictureSettings';
-
-const CALIB_OPTS = [
-  { value: 0, label: 'Cinema Film 1' }, { value: 1, label: 'Cinema Film 2' },
-  { value: 2, label: 'Reference' }, { value: 3, label: 'TV' }, { value: 4, label: 'Photo' },
-  { value: 5, label: 'Game' }, { value: 6, label: 'Bright Cinema' }, { value: 7, label: 'Bright TV' },
-  { value: 8, label: 'User' },
-];
+import PictureTab from './PictureTab';
+import SystemTab from './SystemTab';
+import InfoTab from './InfoTab';
 
 export default function ProjectorTab({ currentChannels, projector }) {
   const { status, uploadProgress, error, lastIp, connect, disconnect, set, activateSlot, upload } = projector;
   const [selectedSlot, setSelectedSlot] = useState(10);
+  const [activeTab, setActiveTab] = useState('picture');
 
   const handleUpload = (slot) => {
     if (!currentChannels) return;
@@ -22,8 +18,6 @@ export default function ProjectorTab({ currentChannels, projector }) {
   };
 
   const handleUseSlot = (slot) => {
-    // SET item 00 22 (Gamma Correction) to the target slot value (7–10).
-    // This is how ImageDirector changes the active gamma slot.
     set(0x00, 0x22, slot);
   };
 
@@ -33,40 +27,28 @@ export default function ProjectorTab({ currentChannels, projector }) {
 
   return (
     <div className="projector-tab">
-      <ProjectorStatusBar
+      <ProjectorStatusBar status={status} error={error} onDisconnect={disconnect} />
+      <GammaSlots
         status={status}
-        error={error}
-        onDisconnect={disconnect}
         onUpload={handleUpload}
-        selectedUploadSlot={selectedSlot}
+        onUseSlot={handleUseSlot}
+        uploadProgress={uploadProgress}
+        uploadingSlot={selectedSlot}
       />
-      <div className="projector-columns">
-        {/* Left column */}
-        <div className="projector-col-left">
-          <div className="proj-section">
-            <div className="proj-section-label">CALIB PRESET</div>
-            <select
-              className="proj-select"
-              style={{ width: '100%' }}
-              value={status.calibPreset ?? 0}
-              onChange={e => set(0x00, 0x02, Number(e.target.value))}
-            >
-              {CALIB_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <GammaSlots
-            status={status}
-            onUpload={handleUpload}
-            onUseSlot={handleUseSlot}
-            uploadProgress={uploadProgress}
-            uploadingSlot={selectedSlot}
-          />
-        </div>
-        {/* Right column */}
-        <div className="projector-col-right">
-          <PictureSettings status={status} onSet={set} />
-        </div>
+      <div className="proj-tab-bar">
+        {[['picture', '🎛 Picture'], ['system', '⚙️ System'], ['info', 'ℹ️ Info']].map(([id, label]) => (
+          <button
+            key={id}
+            className={`proj-tab-btn${activeTab === id ? ' active' : ''}`}
+            onClick={() => setActiveTab(id)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
+      {activeTab === 'picture' && <PictureTab status={status} onSet={set} />}
+      {activeTab === 'system'  && <SystemTab  status={status} onSet={set} />}
+      {activeTab === 'info'    && <InfoTab    status={status} />}
     </div>
   );
 }
