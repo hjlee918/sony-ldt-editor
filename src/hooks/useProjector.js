@@ -89,6 +89,7 @@ export function useProjector() {
   );
   const pollRef = useRef(null);
   const isBusyRef = useRef(false); // true while a SET (or post-SET status fetch) is in flight
+  const isPollingRef = useRef(false); // true while a getStatus() poll is in flight (prevents stacking)
   const lastActivatedSlotRef = useRef(null); // persists user-chosen active slot across polls
   const ipRef = useRef(''); // persists IP so polls can re-attach it to status
 
@@ -102,17 +103,22 @@ export function useProjector() {
   const startPolling = useCallback(() => {
     stopPolling();
     pollRef.current = setInterval(async () => {
-      if (isBusyRef.current) return; // skip poll while SET is in flight
-      const s = await window.projector?.getStatus();
-      if (!s || !s.connected) {
-        stopPolling();
-        setStatus({ connected: false });
-      } else {
-        // Don't let the poll revert a user-chosen active slot
-        if (lastActivatedSlotRef.current !== null) {
-          s.gammaCorrection = lastActivatedSlotRef.current;
+      if (isBusyRef.current || isPollingRef.current) return; // skip if SET or prior poll still in flight
+      isPollingRef.current = true;
+      try {
+        const s = await window.projector?.getStatus();
+        if (!s || !s.connected) {
+          stopPolling();
+          setStatus({ connected: false });
+        } else {
+          // Don't let the poll revert a user-chosen active slot
+          if (lastActivatedSlotRef.current !== null) {
+            s.gammaCorrection = lastActivatedSlotRef.current;
+          }
+          setStatus({ ...s, ip: ipRef.current });
         }
-        setStatus({ ...s, ip: ipRef.current });
+      } finally {
+        isPollingRef.current = false;
       }
     }, POLL_INTERVAL_MS);
   }, [stopPolling]);
