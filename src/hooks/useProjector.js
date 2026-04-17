@@ -2,18 +2,66 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Maps SDCP item (upper, lower) → ProjectorStatus field name for optimistic updates
 const ITEM_FIELD = {
-  '00:22': 'gammaCorrection',
-  '00:10': 'brightness',
-  '00:11': 'contrast',
-  '00:17': 'colorTemp',
-  '00:3b': 'colorSpace',
+  // ── Picture / Core ──
   '00:02': 'calibPreset',
-  '00:59': 'motionflow',
-  '00:7c': 'hdr',
+  '00:11': 'contrast',
+  '00:10': 'brightness',
+  '00:12': 'color',
+  '00:13': 'hue',
+  '00:17': 'colorTemp',
+  '00:24': 'sharpness',
+  // ── Cinema Black Pro ──
   '00:1d': 'advancedIris',
+  '00:1e': 'contrastEnhancer',
+  '00:1f': 'lampControl',
+  // ── Processing ──
+  '00:59': 'motionflow',
+  '00:20': 'realityCreation',
+  // ── Expert: Noise ──
   '00:25': 'nr',
+  '00:26': 'mpegNr',
+  '00:27': 'smoothGradation',
+  '00:23': 'filmMode',
+  // ── Expert: Gamma / HDR ──
+  '00:22': 'gammaCorrection',
+  '00:7c': 'hdr',
+  '00:99': 'inputLagReduction',
+  '00:28': 'clearWhite',
+  '00:29': 'xvColor',
+  // ── Color Space ──
+  '00:3b': 'colorSpace',
   '00:76': 'csCustomCyanRed',
   '00:77': 'csCustomMagGreen',
+  // ── Color Temp Custom ──
+  '00:30': 'ctGainR', '00:31': 'ctGainG', '00:32': 'ctGainB',
+  '00:33': 'ctBiasR', '00:34': 'ctBiasG', '00:35': 'ctBiasB',
+  // ── Color Correction ──
+  '00:87': 'ccRHue', '00:88': 'ccRSat', '00:89': 'ccRBri',
+  '00:8a': 'ccYHue', '00:8b': 'ccYSat', '00:8c': 'ccYBri',
+  '00:8d': 'ccGHue', '00:8e': 'ccGSat', '00:8f': 'ccGBri',
+  '00:90': 'ccCHue', '00:91': 'ccCSat', '00:92': 'ccCBri',
+  '00:93': 'ccBHue', '00:94': 'ccBSat', '00:95': 'ccBBri',
+  '00:96': 'ccMHue', '00:97': 'ccMSat', '00:98': 'ccMBri',
+  // ── Screen ──
+  '00:3c': 'aspect',
+  '00:78': 'blankLeft', '00:79': 'blankRight',
+  '00:7a': 'blankTop',  '00:7b': 'blankBottom',
+  // ── Function ──
+  '00:60': 'dynamicRange',
+  '00:61': 'hdmiFormat',
+  '00:65': 'd3Display', '00:66': 'd3Format', '00:67': 'd3Brightness',
+  // ── Setup / Installation ──
+  '00:63': 'testPattern',
+  '00:64': 'altitudeMode',
+  '00:62': 'imageFlip',
+  '00:68': 'remoteStart',
+  '00:69': 'networkMgmt',
+  '00:6a': 'powerSaving',
+  '00:6b': 'lensControl',
+  '00:6c': 'irFront',
+  '00:6d': 'irRear',
+  // ── Power / Input ──
+  '00:03': 'inputSelect',
 };
 
 const STORAGE_IP = 'projectorLastIp';
