@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Projector Tab Mockup — Approach A</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-size: 13px;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px;
+    gap: 32px;
+  }
+  h1 { color: #aaa; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; }
+  .label { color: #666; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+
+  /* ── App chrome ── */
+  .app-window {
+    width: 1100px;
+    background: #242424;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid #383838;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .app-titlebar {
+    background: #1e1e1e;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    border-bottom: 1px solid #333;
+  }
+  .traffic-light { width: 12px; height: 12px; border-radius: 50%; }
+  .tl-red { background: #ff5f57; }
+  .tl-yellow { background: #febc2e; }
+  .tl-green { background: #28c840; }
+  .app-title { color: #666; font-size: 11px; margin-left: 8px; }
+
+  /* ── App tabs ── */
+  .app-tabs {
+    display: flex;
+    background: #1e1e1e;
+    border-bottom: 1px solid #333;
+    padding: 0 16px;
+  }
+  .app-tab {
+    padding: 8px 20px;
+    font-size: 12px;
+    color: #666;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+  }
+  .app-tab.active { color: #e0e0e0; border-bottom-color: #4a9eff; }
+
+  /* ── Projector tab content ── */
+  .projector-content {
+    display: flex;
+    flex-direction: column;
+    height: 680px;
+    overflow: hidden;
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 16px;
+    background: #1e1e1e;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+  }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #28c840; flex-shrink: 0; }
+  .status-model { font-size: 12px; font-weight: 600; color: #ccc; }
+  .status-detail { font-size: 11px; color: #666; }
+  .status-spacer { flex: 1; }
+  .btn-sm {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    border: 1px solid #444;
+    background: #2e2e2e;
+    color: #ccc;
+    cursor: pointer;
+  }
+  .btn-sm.danger { border-color: #5a2020; color: #cc6666; }
+
+  /* Gamma slots bar */
+  .gamma-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #202020;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+  }
+  .gamma-bar-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #555; margin-right: 4px; }
+  .gamma-slot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #2a2a2a;
+    border: 1px solid #3a3a3a;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 11px;
+    color: #aaa;
+  }
+  .gamma-slot.active-slot { border-color: #c0392b; }
+  .slot-name { font-weight: 600; }
+  .slot-active-badge {
+    background: #c0392b;
+    color: white;
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-weight: 700;
+  }
+  .btn-upload {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    border: 1px solid #3a5a8a;
+    background: #1a3a5a;
+    color: #7ab0e0;
+    cursor: pointer;
+  }
+  .btn-dl {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    border: 1px solid #3a4a3a;
+    background: #1a2a1a;
+    color: #7ac07a;
+    cursor: pointer;
+  }
+  .btn-use {
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 10px;
+    border: 1px solid #444;
+    background: #2a2a2a;
+    color: #888;
+    cursor: pointer;
+  }
+
+  /* Section tabs */
+  .section-tabs {
+    display: flex;
+    background: #1a1a1a;
+    border-bottom: 1px solid #333;
+    padding: 0 16px;
+    flex-shrink: 0;
+  }
+  .section-tab {
+    padding: 8px 18px;
+    font-size: 12px;
+    color: #555;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+  .section-tab.active { color: #e0e0e0; border-bottom-color: #4a9eff; }
+  .section-tab:hover:not(.active) { color: #888; }
+
+  /* Content area */
+  .content-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 16px;
+    display: flex;
+    gap: 16px;
+  }
+  .content-area::-webkit-scrollbar { width: 6px; }
+  .content-area::-webkit-scrollbar-track { background: #1a1a1a; }
+  .content-area::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 3px; }
+
+  /* Control column */
+  .ctrl-col { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .ctrl-col-wide { flex: 1.4; display: flex; flex-direction: column; gap: 12px; }
+
+  /* Section card */
+  .section-card {
+    background: #2a2a2a;
+    border: 1px solid #363636;
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  .section-card-header {
+    padding: 6px 12px;
+    background: #222;
+    border-bottom: 1px solid #333;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #666;
+    font-weight: 600;
+  }
+  .section-card-body { padding: 8px 0; }
+
+  /* Control row */
+  .ctrl-row {
+    display: flex;
+    align-items: center;
+    padding: 5px 12px;
+    gap: 8px;
+    min-height: 28px;
+  }
+  .ctrl-row:hover { background: rgba(255,255,255,0.03); }
+  .ctrl-label { flex: 0 0 120px; font-size: 11px; color: #888; }
+  .ctrl-label.wide { flex: 0 0 140px; }
+  .ctrl-value { flex: 1; }
+
+  /* Fake controls */
+  .fake-select {
+    background: #1e1e1e;
+    border: 1px solid #3a3a3a;
+    border-radius: 4px;
+    padding: 3px 8px;
+    font-size: 11px;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 160px;
+  }
+  .fake-select::after { content: '▾'; color: #555; font-size: 9px; }
+  .fake-slider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 200px;
+    width: 100%;
+  }
+  .slider-track {
+    flex: 1;
+    height: 3px;
+    background: #333;
+    border-radius: 2px;
+    position: relative;
+  }
+  .slider-fill {
+    height: 100%;
+    background: #4a9eff;
+    border-radius: 2px;
+  }
+  .slider-thumb {
+    position: absolute;
+    right: 30%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #4a9eff;
+    border: 2px solid #242424;
+  }
+  .slider-val { font-size: 11px; color: #888; min-width: 24px; text-align: right; }
+  .fake-toggle {
+    width: 34px;
+    height: 18px;
+    border-radius: 9px;
+    background: #333;
+    position: relative;
+    cursor: pointer;
+  }
+  .fake-toggle.on { background: #1a6a2e; }
+  .fake-toggle::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #888;
+    top: 2px;
+    left: 2px;
+    transition: left 0.15s;
+  }
+  .fake-toggle.on::after { left: 18px; background: #28c840; }
+  .fake-btn {
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    border: 1px solid #3a5a8a;
+    background: #1a3a5a;
+    color: #7ab0e0;
+    cursor: pointer;
+    margin-right: 6px;
+  }
+  .fake-btn.action { border-color: #5a4a1a; background: #3a2a0a; color: #c0a060; }
+  .fake-btn.danger { border-color: #5a2020; background: #2a1010; color: #c06060; }
+
+  .divider { height: 1px; background: #333; margin: 4px 0; }
+
+  /* Color correction grid */
+  .cc-grid {
+    display: grid;
+    grid-template-columns: 80px 1fr 1fr 1fr;
+    gap: 1px;
+    background: #333;
+    border: 1px solid #333;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 8px 12px;
+    font-size: 10px;
+  }
+  .cc-header {
+    background: #222;
+    padding: 4px 8px;
+    color: #666;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .cc-cell {
+    background: #2a2a2a;
+    padding: 5px 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .cc-color-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .cc-mini-slider {
+    flex: 1;
+    height: 2px;
+    background: #333;
+    border-radius: 1px;
+    position: relative;
+  }
+  .cc-mini-fill { height: 100%; background: #4a9eff; border-radius: 1px; }
+  .cc-mini-val { font-size: 10px; color: #777; min-width: 20px; text-align: right; }
+
+  /* Info panel */
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .info-card {
+    background: #2a2a2a;
+    border: 1px solid #363636;
+    border-radius: 7px;
+    overflow: hidden;
+  }
+  .info-card-header {
+    padding: 5px 12px;
+    background: #222;
+    border-bottom: 1px solid #333;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #666;
+  }
+  .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 12px;
+    border-bottom: 1px solid #2e2e2e;
+  }
+  .info-row:last-child { border-bottom: none; }
+  .info-key { font-size: 11px; color: #666; }
+  .info-val { font-size: 11px; color: #ccc; font-family: 'JetBrains Mono', monospace; }
+  .info-val.highlight { color: #4a9eff; }
+
+  /* Annotation */
+  .annotation {
+    position: relative;
+    background: #1a2a3a;
+    border: 1px dashed #2a5a8a;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 10px;
+    color: #7ab0e0;
+    margin: 8px 0;
+  }
+
+  /* System tab layout */
+  .system-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    padding: 14px 16px;
+    align-items: start;
+  }
+
+  /* Mockup label */
+  .mockup-label {
+    font-size: 10px;
+    color: #555;
+    text-align: center;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<h1>Sony LDT Editor — Projector Tab Mockup</h1>
+
+<!-- ═══════════════════════════════════════════
+     MOCKUP 1: PICTURE TAB
+══════════════════════════════════════════════ -->
+<div class="label">Tab 1 of 3 — Picture Settings</div>
+
+<div class="app-window">
+  <div class="app-titlebar">
+    <div class="traffic-light tl-red"></div>
+    <div class="traffic-light tl-yellow"></div>
+    <div class="traffic-light tl-green"></div>
+    <span class="app-title">Sony LDT Gamma Curve Editor</span>
+  </div>
+  <div class="app-tabs">
+    <div class="app-tab">Editor</div>
+    <div class="app-tab active">Projector</div>
+  </div>
+
+  <div class="projector-content">
+    <!-- Status bar -->
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      <div class="status-model">VPL-VW385ES</div>
+      <div class="status-detail">192.168.1.50 · Power ON · HDMI 1 · 3840×2160</div>
+      <div class="status-spacer"></div>
+      <div class="btn-sm danger">Disconnect</div>
+    </div>
+
+    <!-- Gamma Slots — always pinned -->
+    <div class="gamma-bar">
+      <div class="gamma-bar-label">Gamma Slots</div>
+
+      <div class="gamma-slot">
+        <span class="slot-name">G7</span>
+        <button class="btn-upload">⬆ Upload</button>
+        <button class="btn-dl">⬇ Load</button>
+        <button class="btn-use">Use</button>
+      </div>
+      <div class="gamma-slot">
+        <span class="slot-name">G8</span>
+        <button class="btn-upload">⬆ Upload</button>
+        <button class="btn-dl">⬇ Load</button>
+        <button class="btn-use">Use</button>
+      </div>
+      <div class="gamma-slot active-slot">
+        <span class="slot-name">G9</span>
+        <span class="slot-active-badge">ACTIVE</span>
+        <button class="btn-upload">⬆ Upload</button>
+        <button class="btn-dl">⬇ Load</button>
+        <button class="btn-use">Use</button>
+      </div>
+      <div class="gamma-slot">
+        <span class="slot-name">G10</span>
+        <button class="btn-upload">⬆ Upload</button>
+        <button class="btn-dl">⬇ Load</button>
+        <button class="btn-use">Use</button>
+      </div>
+    </div>
+
+    <!-- Section tabs -->
+    <div class="section-tabs">
+      <div class="section-tab active">🎛 Picture</div>
+      <div class="section-tab">⚙️ System</div>
+      <div class="section-tab">ℹ️ Info</div>
+    </div>
+
+    <!-- Picture tab content -->
+    <div class="content-area">
+      <!-- Column 1 -->
+      <div class="ctrl-col">
+
+        <div class="section-card">
+          <div class="section-card-header">Calib Preset</div>
+          <div class="section-card-body">
+            <div class="ctrl-row">
+              <div class="ctrl-label">Mode</div>
+              <div class="ctrl-value">
+                <div class="fake-select">Cinema Film 1</div>
+              </div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label" style="color:#555">Reset Preset</div>
+              <div class="ctrl-value"><button class="fake-btn danger">Reset to Defaults</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-header">Tone</div>
+          <div class="section-card-body">
+            <div class="ctrl-row">
+              <div class="ctrl-label">Contrast</div>
+              <div class="ctrl-value">
+                <div class="fake-slider">
+                  <div class="slider-track"><div class="slider-fill" style="width:70%"></div><div class="slider-thumb" style="right:auto;left:calc(70% - 5px)"></div></div>
+                  <div class="slider-val">70</div>
+                </div>
+              </div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Brightness</div>
+              <div class="ctrl-value">
+                <div class="fake-slider">
+                  <div class="slider-track"><div class="slider-fill" style="width:50%"></div><div class="slider-thumb" style="right:auto;left:calc(50% - 5px)"></div></div>
+                  <div class="slider-val">50</div>
+                </div>
+              </div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Color</div>
+              <div class="ctrl-value">
+                <div class="fake-slider">
+                  <div class="slider-track"><div class="slider-fill" style="width:50%"></div><div class="slider-thumb" style="right:auto;left:calc(50% - 5px)"></div></div>
+                  <div class="slider-val">50</div>
+                </div>
+              </div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Hue</div>
+              <div class="ctrl-value">
+                <div class="fake-slider">
+                  <div class="slider-track"><div class="slider-fill" style="width:50%"></div><div class="slider-thumb" style="right:auto;left:calc(50% - 5px)"></div></div>
+                  <div class="slider-val">0</div>
+                </div>
+              </div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Sharpness</div>
+              <div class="ctrl-value">
+                <div class="fake-slider">
+                  <div class="slider-track"><div class="slider-fill" style="width:10%"></div><div class="slider-thumb" style="right:auto;left:calc(10% - 5px)"></div></div>
+                  <div class="slider-val">10</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-header">Color Temperature</div>
+          <div class="section-card-body">
+            <div class="ctrl-row">
+              <div class="ctrl-label">Preset</div>
+              <div class="ctrl-value"><div class="fake-select">D65</div></div>
+            </div>
+            <div class="divider"></div>
+            <div class="ctrl-row" style="opacity:0.4">
+              <div class="ctrl-label" style="font-size:10px">Custom slot Gain/Bias</div>
+              <div class="ctrl-value" style="font-size:10px;color:#555">(shown when Custom 1–5 selected)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-header">Cinema Black Pro</div>
+          <div class="section-card-body">
+            <div class="ctrl-row">
+              <div class="ctrl-label">Advanced Iris</div>
+              <div class="ctrl-value"><div class="fake-select">Full</div></div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Contrast Enhancer</div>
+              <div class="ctrl-value"><div class="fake-select">High</div></div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Lamp Control</div>
+              <div class="ctrl-value"><div class="fake-select">Low</div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Column 2 -->
+      <div class="ctrl-col">
+
+        <div class="section-card">
+          <div class="section-card-header">Processing</div>
+          <div class="section-card-body">
+            <div class="ctrl-row">
+              <div class="ctrl-label">Motionflow</div>
+              <div class="ctrl-value"><div class="fake-select">True Cinema</div></div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Reality Creation</div>
+              <div class="ctrl-value"><div class="fake-toggle on"></div></div>
+            </div>
+            <div class="ctrl-row" style="padding-left:28px">
+              <div class="ctrl-label" style="color:#555;font-size:10px">Database</div>
+              <div class="ctrl-value"><div class="fake-select" style="font-size:10px">Mastered in 4K</div></div>
+            </div>
+            <div class="ctrl-row" style="padding-left:28px">
+              <div class="ctrl-label" style="color:#555;font-size:10px">Resolution</div>
+              <div class="ctrl-value">
+                <div class="fake-slider">
+                  <div class="slider-track"><div class="slider-fill" style="width:40%"></div><div class="slider-thumb" style="right:auto;left:calc(40% - 5px)"></div></div>
+                  <div class="slider-val">40</div>
+                </div>
+              </div>
+            </div>
+            <div class="ctrl-row" style="padding-left:28px">
+              <div class="ctrl-label" style="color:#555;font-size:10px">Noise Filtering</div>
+              <div class="ctrl-value">
+                <div class="fake-slider">
+                  <div class="slider-track"><div class="slider-fill" style="width:30%"></div><div class="slider-thumb" style="right:auto;left:calc(30% - 5px)"></div></div>
+                  <div class="slider-val">30</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-header">Expert — Noise &amp; Processing</div>
+          <div class="section-card-body">
+            <div class="ctrl-row">
+              <div class="ctrl-label">NR</div>
+              <div class="ctrl-value"><div class="fake-select">Auto</div></div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">MPEG NR</div>
+              <div class="ctrl-value"><div class="fake-select">Auto</div></div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Smooth Gradation</div>
+              <div class="ctrl-value"><div class="fake-select">Off</div></div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Film Mode</div>
+              <div class="ctrl-value"><div class="fake-select">Auto</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-header">Expert — Gamma &amp; HDR</div>
+          <div class="section-card-body">
+            <div class="ctrl-row">
+              <div class="ctrl-label">Gamma Correction</div>
+              <div class="ctrl-value"><div class="fake-select">Gamma 9</div></div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">HDR</div>
+              <div class="ctrl-value"><div class="fake-select">Auto</div></div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Input Lag Reduction</div>
+              <div class="ctrl-value"><div class="fake-toggle"></div></div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">Clear White</div>
+              <div class="ctrl-value"><div class="fake-select">Off</div></div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-label">x.v.Color</div>
+              <div class="ctrl-value"><div class="fake-toggle"></div></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Column 3 — Color -->
+      <div class="ctrl-col-wide">
+
+        <div class="section-card">
+          <div class="section-card-header">Color Space</div>
+          <div class="section-card-body">
+            <div class="ctrl-row">
+              <div class="ctrl-label">Mode</div>
+              <div class="ctrl-value"><div class="fake-select">BT.709</div></div>
+            </div>
+            <div class="ctrl-row" style="opacity:0.4">
+              <div class="ctrl-label" style="font-size:10px">Cyan–Red</div>
+              <div class="ctrl-value" style="font-size:10px;color:#555">(shown when Custom selected)</div>
+            </div>
+            <div class="ctrl-row" style="opacity:0.4">
+              <div class="ctrl-label" style="font-size:10px">Magenta–Green</div>
+              <div class="ctrl-value" style="font-size:10px;color:#555">(shown when Custom selected)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-header">Color Correction (6-axis)</div>
+          <div class="cc-grid">
+            <div class="cc-header">Color</div>
+            <div class="cc-header">Hue</div>
+            <div class="cc-header">Saturation</div>
+            <div class="cc-header">Brightness</div>
+
+            <!-- Red -->
+            <div class="cc-cell"><div class="cc-color-dot" style="background:#e05555"></div> Red</div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <!-- Yellow -->
+            <div class="cc-cell"><div class="cc-color-dot" style="background:#e0c050"></div> Yellow</div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <!-- Green -->
+            <div class="cc-cell"><div class="cc-color-dot" style="background:#50c050"></div> Green</div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <!-- Cyan -->
+            <div class="cc-cell"><div class="cc-color-dot" style="background:#50c0c0"></div> Cyan</div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <!-- Blue -->
+            <div class="cc-cell"><div class="cc-color-dot" style="background:#5080e0"></div> Blue</div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <!-- Magenta -->
+            <div class="cc-cell"><div class="cc-color-dot" style="background:#c050c0"></div> Magenta</div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+            <div class="cc-cell"><div class="cc-mini-slider"><div class="cc-mini-fill" style="width:50%"></div></div><div class="cc-mini-val">0</div></div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-header">Advanced Picture — Auto Calibration</div>
+          <div class="section-card-body">
+            <div class="ctrl-row">
+              <div class="ctrl-label" style="color:#555;font-size:10px">Panel color drift correction. Requires 30+ min warm-up. Lens moves during Adjust.</div>
+            </div>
+            <div class="ctrl-row">
+              <div class="ctrl-value" style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="fake-btn action">Pre Check</button>
+                <button class="fake-btn action">Adjust</button>
+                <button class="fake-btn action">Before / After</button>
+                <button class="fake-btn danger">Reset</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div><!-- content-area -->
+  </div><!-- projector-content -->
+</div><!-- app-window -->
+
+<div class="mockup-label">Mockup 1/3 — Picture tab: 3 columns, always-pinned Gamma Slots, scrollable sections</div>
+
+
+<!-- ═══════════════════════════════════════════
+     MOCKUP 2: SYSTEM TAB
+══════════════════════════════════════════════ -->
+<div class="label" style="margin-top:16px">Tab 2 of 3 — System</div>
+
+<div class="app-window">
+  <div class="app-titlebar">
+    <div class="traffic-light tl-red"></div>
+    <div class="traffic-light tl-yellow"></div>
+    <div class="traffic-light tl-green"></div>
+    <span class="app-title">Sony LDT Gamma Curve Editor</span>
+  </div>
+  <div class="app-tabs">
+    <div class="app-tab">Editor</div>
+    <div class="app-tab active">Projector</div>
+  </div>
+
+  <div class="projector-content">
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      <div class="status-model">VPL-VW385ES</div>
+      <div class="status-detail">192.168.1.50 · Power ON · HDMI 1 · 3840×2160</div>
+      <div class="status-spacer"></div>
+      <div class="btn-sm danger">Disconnect</div>
+    </div>
+    <div class="gamma-bar">
+      <div class="gamma-bar-label">Gamma Slots</div>
+      <div class="gamma-slot"><span class="slot-name">G7</span><button class="btn-upload">⬆ Upload</button><button class="btn-dl">⬇ Load</button><button class="btn-use">Use</button></div>
+      <div class="gamma-slot"><span class="slot-name">G8</span><button class="btn-upload">⬆ Upload</button><button class="btn-dl">⬇ Load</button><button class="btn-use">Use</button></div>
+      <div class="gamma-slot active-slot"><span class="slot-name">G9</span><span class="slot-active-badge">ACTIVE</span><button class="btn-upload">⬆ Upload</button><button class="btn-dl">⬇ Load</button><button class="btn-use">Use</button></div>
+      <div class="gamma-slot"><span class="slot-name">G10</span><button class="btn-upload">⬆ Upload</button><button class="btn-dl">⬇ Load</button><button class="btn-use">Use</button></div>
+    </div>
+    <div class="section-tabs">
+      <div class="section-tab">🎛 Picture</div>
+      <div class="section-tab active">⚙️ System</div>
+      <div class="section-tab">ℹ️ Info</div>
+    </div>
+
+    <div class="system-grid">
+
+      <!-- Screen -->
+      <div class="section-card">
+        <div class="section-card-header">Screen</div>
+        <div class="section-card-body">
+          <div class="ctrl-row">
+            <div class="ctrl-label">Aspect</div>
+            <div class="ctrl-value"><div class="fake-select">Normal</div></div>
+          </div>
+          <div class="ctrl-row"><div class="ctrl-label">Blanking Left</div><div class="ctrl-value"><div class="fake-slider"><div class="slider-track"><div class="slider-fill" style="width:5%"></div><div class="slider-thumb" style="right:auto;left:calc(5% - 5px)"></div></div><div class="slider-val">2</div></div></div></div>
+          <div class="ctrl-row"><div class="ctrl-label">Blanking Right</div><div class="ctrl-value"><div class="fake-slider"><div class="slider-track"><div class="slider-fill" style="width:8%"></div><div class="slider-thumb" style="right:auto;left:calc(8% - 5px)"></div></div><div class="slider-val">3</div></div></div></div>
+          <div class="ctrl-row"><div class="ctrl-label">Blanking Top</div><div class="ctrl-value"><div class="fake-slider"><div class="slider-track"><div class="slider-fill" style="width:5%"></div><div class="slider-thumb" style="right:auto;left:calc(5% - 5px)"></div></div><div class="slider-val">2</div></div></div></div>
+          <div class="ctrl-row"><div class="ctrl-label">Blanking Bottom</div><div class="ctrl-value"><div class="fake-slider"><div class="slider-track"><div class="slider-fill" style="width:8%"></div><div class="slider-thumb" style="right:auto;left:calc(8% - 5px)"></div></div><div class="slider-val">3</div></div></div></div>
+        </div>
+      </div>
+
+      <!-- Function -->
+      <div class="section-card">
+        <div class="section-card-header">Function</div>
+        <div class="section-card-body">
+          <div class="ctrl-row"><div class="ctrl-label">Dynamic Range</div><div class="ctrl-value"><div class="fake-select">Auto</div></div></div>
+          <div class="ctrl-row"><div class="ctrl-label">HDMI Format</div><div class="ctrl-value"><div class="fake-select">Standard</div></div></div>
+          <div class="ctrl-row"><div class="ctrl-label">Test Pattern</div><div class="ctrl-value"><div class="fake-toggle"></div></div></div>
+          <div class="ctrl-row"><div class="ctrl-label">Settings Lock</div><div class="ctrl-value"><div class="fake-select">Off</div></div></div>
+          <div class="divider"></div>
+          <div class="ctrl-row" style="padding:6px 12px"><div style="font-size:10px;color:#555">3D Settings</div></div>
+          <div class="ctrl-row"><div class="ctrl-label">2D-3D Display</div><div class="ctrl-value"><div class="fake-select">Auto</div></div></div>
+          <div class="ctrl-row"><div class="ctrl-label">3D Format</div><div class="ctrl-value"><div class="fake-select">Side-by-Side</div></div></div>
+          <div class="ctrl-row"><div class="ctrl-label">3D Brightness</div><div class="ctrl-value"><div class="fake-select">Standard</div></div></div>
+          <div class="ctrl-row"><div class="ctrl-label">3D Depth Adjust</div><div class="ctrl-value"><div class="fake-select">0</div></div></div>
+          <div class="ctrl-row"><div class="ctrl-label">Simulated 3D</div><div class="ctrl-value"><div class="fake-select">Middle</div></div></div>
+        </div>
+      </div>
+
+      <!-- Right column: Power + Setup + Installation -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+
+        <div class="section-card">
+          <div class="section-card-header">Power &amp; Input</div>
+          <div class="section-card-body">
+            <div class="ctrl-row">
+              <div class="ctrl-value" style="display:flex;gap:8px">
+                <button class="fake-btn" style="border-color:#1a5a2a;background:#0a2a1a;color:#5ac07a">⏻ Power On</button>
+                <button class="fake-btn danger">⏻ Standby</button>
+              </div>
+            </div>
+            <div class="ctrl-row"><div class="ctrl-label">Input</div><div class="ctrl-value"><div class="fake-select">HDMI 1</div></div></div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-header">Setup</div>
+          <div class="section-card-body">
+            <div class="ctrl-row"><div class="ctrl-label">OSD Status</div><div class="ctrl-value"><div class="fake-toggle on"></div></div></div>
+            <div class="ctrl-row"><div class="ctrl-label">High Altitude Mode</div><div class="ctrl-value"><div class="fake-toggle"></div></div></div>
+            <div class="ctrl-row"><div class="ctrl-label">Remote Start</div><div class="ctrl-value"><div class="fake-toggle"></div></div></div>
+            <div class="ctrl-row"><div class="ctrl-label">Network Mgmt</div><div class="ctrl-value"><div class="fake-toggle on"></div></div></div>
+            <div class="ctrl-row"><div class="ctrl-label">Power Saving</div><div class="ctrl-value"><div class="fake-select">Standby</div></div></div>
+            <div class="ctrl-row"><div class="ctrl-label" style="color:#555">All Reset</div><div class="ctrl-value"><button class="fake-btn danger">Factory Reset</button></div></div>
+          </div>
+        </div>
+
+        <div class="section-card">
+          <div class="section-card-header">Installation</div>
+          <div class="section-card-body">
+            <div class="ctrl-row"><div class="ctrl-label">Image Flip</div><div class="ctrl-value"><div class="fake-select">Off</div></div></div>
+            <div class="ctrl-row"><div class="ctrl-label">Lens Control</div><div class="ctrl-value"><div class="fake-toggle on"></div></div></div>
+            <div class="ctrl-row"><div class="ctrl-label">Anamorphic Lens</div><div class="ctrl-value"><div class="fake-select">1.24x</div></div></div>
+            <div class="ctrl-row"><div class="ctrl-label">Trigger Select</div><div class="ctrl-value"><div class="fake-select">Power</div></div></div>
+            <div class="ctrl-row"><div class="ctrl-label">IR Receiver</div><div class="ctrl-value"><div class="fake-select">Front &amp; Rear</div></div></div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="mockup-label">Mockup 2/3 — System tab: 3-column grid, Screen / Function / Power+Setup+Installation</div>
+
+
+<!-- ═══════════════════════════════════════════
+     MOCKUP 3: INFO TAB
+══════════════════════════════════════════════ -->
+<div class="label" style="margin-top:16px">Tab 3 of 3 — Info</div>
+
+<div class="app-window">
+  <div class="app-titlebar">
+    <div class="traffic-light tl-red"></div>
+    <div class="traffic-light tl-yellow"></div>
+    <div class="traffic-light tl-green"></div>
+    <span class="app-title">Sony LDT Gamma Curve Editor</span>
+  </div>
+  <div class="app-tabs">
+    <div class="app-tab">Editor</div>
+    <div class="app-tab active">Projector</div>
+  </div>
+
+  <div class="projector-content">
+    <div class="status-bar">
+      <div class="status-dot"></div>
+      <div class="status-model">VPL-VW385ES</div>
+      <div class="status-detail">192.168.1.50 · Power ON · HDMI 1 · 3840×2160</div>
+      <div class="status-spacer"></div>
+      <div class="btn-sm danger">Disconnect</div>
+    </div>
+    <div class="gamma-bar">
+      <div class="gamma-bar-label">Gamma Slots</div>
+      <div class="gamma-slot"><span class="slot-name">G7</span><button class="btn-upload">⬆ Upload</button><button class="btn-dl">⬇ Load</button><button class="btn-use">Use</button></div>
+      <div class="gamma-slot"><span class="slot-name">G8</span><button class="btn-upload">⬆ Upload</button><button class="btn-dl">⬇ Load</button><button class="btn-use">Use</button></div>
+      <div class="gamma-slot active-slot"><span class="slot-name">G9</span><span class="slot-active-badge">ACTIVE</span><button class="btn-upload">⬆ Upload</button><button class="btn-dl">⬇ Load</button><button class="btn-use">Use</button></div>
+      <div class="gamma-slot"><span class="slot-name">G10</span><button class="btn-upload">⬆ Upload</button><button class="btn-dl">⬇ Load</button><button class="btn-use">Use</button></div>
+    </div>
+    <div class="section-tabs">
+      <div class="section-tab">🎛 Picture</div>
+      <div class="section-tab">⚙️ System</div>
+      <div class="section-tab active">ℹ️ Info</div>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="info-card-header">Projector Identity</div>
+        <div class="info-row"><div class="info-key">Model Name</div><div class="info-val">VPL-VW385ES</div></div>
+        <div class="info-row"><div class="info-key">Serial Number</div><div class="info-val">3999999</div></div>
+        <div class="info-row"><div class="info-key">Software Version</div><div class="info-val">3.999</div></div>
+        <div class="info-row"><div class="info-key">Lamp Timer</div><div class="info-val highlight">1234 h</div></div>
+      </div>
+
+      <div class="info-card">
+        <div class="info-card-header">Input Signal</div>
+        <div class="info-row"><div class="info-key">Signal Type</div><div class="info-val">3840×2160p / 60</div></div>
+        <div class="info-row"><div class="info-key">Color Format</div><div class="info-val">YCbCr 4:2:0</div></div>
+        <div class="info-row"><div class="info-key">Color Space</div><div class="info-val">BT.2020</div></div>
+        <div class="info-row"><div class="info-key">HDR Format</div><div class="info-val highlight">HDR(HDR10)</div></div>
+      </div>
+
+      <div class="info-card">
+        <div class="info-card-header">Active Picture Settings</div>
+        <div class="info-row"><div class="info-key">Calib. Preset</div><div class="info-val">Cinema Film 1</div></div>
+        <div class="info-row"><div class="info-key">Gamma Correction</div><div class="info-val highlight">Gamma 9 (custom)</div></div>
+        <div class="info-row"><div class="info-key">Color Temp</div><div class="info-val">D65</div></div>
+        <div class="info-row"><div class="info-key">Color Space</div><div class="info-val">BT.709</div></div>
+        <div class="info-row"><div class="info-key">HDR Mode</div><div class="info-val">Auto</div></div>
+        <div class="info-row"><div class="info-key">Motionflow</div><div class="info-val">True Cinema</div></div>
+      </div>
+
+      <div class="info-card">
+        <div class="info-card-header">Network</div>
+        <div class="info-row"><div class="info-key">IP Address</div><div class="info-val">192.168.1.50</div></div>
+        <div class="info-row"><div class="info-key">Connection</div><div class="info-val highlight">● Connected</div></div>
+        <div class="info-row"><div class="info-key">Protocol</div><div class="info-val">SDCP / TCP 53484</div></div>
+        <div class="info-row"><div class="info-key">Poll Interval</div><div class="info-val">5 s</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mockup-label">Mockup 3/3 — Info tab: 2×2 read-only cards (Identity / Signal / Active Settings / Network)</div>
+
+</body>
+</html>
