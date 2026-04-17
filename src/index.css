@@ -355,7 +355,7 @@
 .info-val-highlight { color: var(--accent); font-weight: 600; }
 
 /* ── Color Correction grid ──────────────────────────── */
-.cc-grid { padding: 8px 12px; }
+.cc-grid { display: block; padding: 8px 12px; }
 .cc-grid-header {
   display: grid;
   grid-template-columns: 80px 1fr 1fr 1fr;

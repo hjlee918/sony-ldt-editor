@@ -7,7 +7,7 @@ import SystemTab from './SystemTab';
 import InfoTab from './InfoTab';
 
 export default function ProjectorTab({ currentChannels, projector }) {
-  const { status, uploadProgress, error, lastIp, connect, disconnect, set, activateSlot, upload } = projector;
+  const { status, uploadProgress, error, lastIp, connect, disconnect, set, upload } = projector;
   const [selectedSlot, setSelectedSlot] = useState(10);
   const [activeTab, setActiveTab] = useState('picture');
 

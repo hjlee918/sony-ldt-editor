@@ -5,7 +5,7 @@ const SLOT_LABELS = { 3: 'Custom 1', 4: 'Custom 2', 5: 'Custom 3', 6: 'Custom 4'
 
 export default function ColorTempCustom({ status, onSet }) {
   const slot = status.colorTemp;
-  if (slot < 3 || slot > 7) return null;
+  if (!slot || slot < 3 || slot > 7) return null;
 
   return (
     <SectionCard title={`Color Temp — ${SLOT_LABELS[slot]}`}>
