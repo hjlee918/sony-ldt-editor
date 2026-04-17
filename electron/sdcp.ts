@@ -105,18 +105,63 @@ export type ErrorCode = 'err_auth' | 'err_connect' | 'err_cmd' | 'err_val' | 'er
 
 export interface ProjectorStatus {
   connected: boolean;
-  gammaCorrection: number;
-  brightness: number;
-  contrast: number;
-  colorTemp: number;
-  colorSpace: number;
+  // ── Picture / Core ──
   calibPreset: number;
-  motionflow: number;
-  hdr: number;
+  contrast: number;
+  brightness: number;
+  color: number;
+  hue: number;
+  colorTemp: number;
+  sharpness: number;
+  // ── Cinema Black Pro ──
   advancedIris: number;
+  contrastEnhancer: number;
+  lampControl: number;
+  // ── Processing ──
+  motionflow: number;
+  realityCreation: number;
+  // ── Expert: Noise ──
   nr: number;
+  mpegNr: number;
+  smoothGradation: number;
+  filmMode: number;
+  // ── Expert: Gamma / HDR ──
+  gammaCorrection: number;
+  hdr: number;
+  inputLagReduction: number;
+  clearWhite: number;
+  xvColor: number;
+  // ── Color Space ──
+  colorSpace: number;
   csCustomCyanRed: number;
   csCustomMagGreen: number;
+  // ── Color Temp Custom Gain/Bias ──
+  ctGainR: number; ctGainG: number; ctGainB: number;
+  ctBiasR: number; ctBiasG: number; ctBiasB: number;
+  // ── Color Correction (6 colors × 3 attributes) ──
+  ccRHue: number; ccRSat: number; ccRBri: number;
+  ccYHue: number; ccYSat: number; ccYBri: number;
+  ccGHue: number; ccGSat: number; ccGBri: number;
+  ccCHue: number; ccCSat: number; ccCBri: number;
+  ccBHue: number; ccBSat: number; ccBBri: number;
+  ccMHue: number; ccMSat: number; ccMBri: number;
+  // ── Screen ──
+  aspect: number;
+  blankLeft: number; blankRight: number; blankTop: number; blankBottom: number;
+  // ── Function ──
+  dynamicRange: number;
+  hdmiFormat: number;
+  d3Display: number; d3Format: number; d3Brightness: number;
+  // ── Setup / Installation ──
+  testPattern: number;
+  altitudeMode: number; remoteStart: number; networkMgmt: number; powerSaving: number;
+  lensControl: number; irFront: number; irRear: number;
+  imageFlip: number;
+  // ── Power / Input ──
+  inputSelect: number;
+  // ── Read-only info ──
+  lampTimer?: number;
+  ip?: string;
 }
 
 export class SdcpConnection extends EventEmitter {
@@ -234,34 +279,93 @@ export class SdcpConnection extends EventEmitter {
       return v ?? fallback;
     };
 
-    const gammaCorrection = await g(0x00, 0x22, 0);
-    const brightness      = await g(0x00, 0x10, 50);
-    const contrast        = await g(0x00, 0x11, 50);
-    const colorTemp       = await g(0x00, 0x17, 2);
-    const colorSpace      = await g(0x00, 0x3b, 0);
-    const calibPreset     = await g(0x00, 0x02, 0);
-    const motionflow      = await g(0x00, 0x59, 0);
-    const hdr             = await g(0x00, 0x7c, 2);
-    const advancedIris    = await g(0x00, 0x1d, 0);
-    const nr              = await g(0x00, 0x25, 0);
-    // Only poll custom CS sliders when in Custom color space mode (value 6)
+    // ── Picture / Core ──
+    const calibPreset      = await g(0x00, 0x02, 0);
+    const contrast         = await g(0x00, 0x11, 50);
+    const brightness       = await g(0x00, 0x10, 50);
+    const color            = await g(0x00, 0x12, 50);   // best-guess
+    const hue              = await g(0x00, 0x13, 50);   // best-guess
+    const colorTemp        = await g(0x00, 0x17, 2);
+    const sharpness        = await g(0x00, 0x24, 10);   // best-guess
+    // ── Cinema Black Pro ──
+    const advancedIris     = await g(0x00, 0x1d, 0);
+    const contrastEnhancer = await g(0x00, 0x1e, 0);   // best-guess
+    const lampControl      = await g(0x00, 0x1f, 1);   // best-guess
+    // ── Processing ──
+    const motionflow       = await g(0x00, 0x59, 0);
+    const realityCreation  = await g(0x00, 0x20, 1);   // best-guess
+    // ── Expert: Noise ──
+    const nr               = await g(0x00, 0x25, 0);
+    const mpegNr           = await g(0x00, 0x26, 0);   // best-guess
+    const smoothGradation  = await g(0x00, 0x27, 0);   // best-guess
+    const filmMode         = await g(0x00, 0x23, 0);   // best-guess
+    // ── Expert: Gamma / HDR ──
+    const gammaCorrection  = await g(0x00, 0x22, 0);
+    const hdr              = await g(0x00, 0x7c, 3);
+    const inputLagReduction = await g(0x00, 0x99, 0);
+    const clearWhite       = await g(0x00, 0x28, 0);   // best-guess
+    const xvColor          = await g(0x00, 0x29, 0);   // best-guess
+    // ── Color Space ──
+    const colorSpace       = await g(0x00, 0x3b, 0);
     const csCustomCyanRed  = colorSpace === 6 ? await g(0x00, 0x76, 0) : 0;
     const csCustomMagGreen = colorSpace === 6 ? await g(0x00, 0x77, 0) : 0;
+    // ── Color Temp Custom Gain/Bias (only when Custom 1–5 selected) ──
+    const isCustomCT = colorTemp >= 3 && colorTemp <= 7;
+    const ctGainR = isCustomCT ? await g(0x00, 0x30, 128) : 128;
+    const ctGainG = isCustomCT ? await g(0x00, 0x31, 128) : 128;
+    const ctGainB = isCustomCT ? await g(0x00, 0x32, 128) : 128;
+    const ctBiasR = isCustomCT ? await g(0x00, 0x33, 128) : 128;
+    const ctBiasG = isCustomCT ? await g(0x00, 0x34, 128) : 128;
+    const ctBiasB = isCustomCT ? await g(0x00, 0x35, 128) : 128;
+    // ── Color Correction ──
+    const ccRHue = await g(0x00, 0x87, 0); const ccRSat = await g(0x00, 0x88, 0); const ccRBri = await g(0x00, 0x89, 0);
+    const ccYHue = await g(0x00, 0x8a, 0); const ccYSat = await g(0x00, 0x8b, 0); const ccYBri = await g(0x00, 0x8c, 0);
+    const ccGHue = await g(0x00, 0x8d, 0); const ccGSat = await g(0x00, 0x8e, 0); const ccGBri = await g(0x00, 0x8f, 0);
+    const ccCHue = await g(0x00, 0x90, 0); const ccCSat = await g(0x00, 0x91, 0); const ccCBri = await g(0x00, 0x92, 0);
+    const ccBHue = await g(0x00, 0x93, 0); const ccBSat = await g(0x00, 0x94, 0); const ccBBri = await g(0x00, 0x95, 0);
+    const ccMHue = await g(0x00, 0x96, 0); const ccMSat = await g(0x00, 0x97, 0); const ccMBri = await g(0x00, 0x98, 0);
+    // ── Screen ──
+    const aspect      = await g(0x00, 0x3c, 0);
+    const blankLeft   = await g(0x00, 0x78, 0);
+    const blankRight  = await g(0x00, 0x79, 0);
+    const blankTop    = await g(0x00, 0x7a, 0);
+    const blankBottom = await g(0x00, 0x7b, 0);
+    // ── Function ──
+    const dynamicRange = await g(0x00, 0x60, 0);
+    const hdmiFormat   = await g(0x00, 0x61, 0);
+    const d3Display    = await g(0x00, 0x65, 0);
+    const d3Format     = await g(0x00, 0x66, 0);
+    const d3Brightness = await g(0x00, 0x67, 0);
+    // ── Setup / Installation ──
+    const testPattern  = await g(0x00, 0x63, 0);
+    const altitudeMode = await g(0x00, 0x64, 0);
+    const imageFlip    = await g(0x00, 0x62, 0);
+    const remoteStart  = await g(0x00, 0x68, 0);
+    const networkMgmt  = await g(0x00, 0x69, 0);
+    const powerSaving  = await g(0x00, 0x6a, 0);
+    const lensControl  = await g(0x00, 0x6b, 1);
+    const irFront      = await g(0x00, 0x6c, 1);
+    const irRear       = await g(0x00, 0x6d, 1);
+    // ── Power / Input ──
+    const inputSelect  = await g(0x00, 0x03, 0);
 
     return {
       connected: true,
-      gammaCorrection,
-      brightness,
-      contrast,
-      colorTemp,
-      colorSpace,
-      calibPreset,
-      motionflow,
-      hdr,
-      advancedIris,
-      nr,
-      csCustomCyanRed,
-      csCustomMagGreen,
+      calibPreset, contrast, brightness, color, hue, colorTemp, sharpness,
+      advancedIris, contrastEnhancer, lampControl,
+      motionflow, realityCreation,
+      nr, mpegNr, smoothGradation, filmMode,
+      gammaCorrection, hdr, inputLagReduction, clearWhite, xvColor,
+      colorSpace, csCustomCyanRed, csCustomMagGreen,
+      ctGainR, ctGainG, ctGainB, ctBiasR, ctBiasG, ctBiasB,
+      ccRHue, ccRSat, ccRBri, ccYHue, ccYSat, ccYBri,
+      ccGHue, ccGSat, ccGBri, ccCHue, ccCSat, ccCBri,
+      ccBHue, ccBSat, ccBBri, ccMHue, ccMSat, ccMBri,
+      aspect, blankLeft, blankRight, blankTop, blankBottom,
+      dynamicRange, hdmiFormat, d3Display, d3Format, d3Brightness,
+      testPattern, altitudeMode, imageFlip,
+      remoteStart, networkMgmt, powerSaving, lensControl, irFront, irRear,
+      inputSelect,
     };
   }
 
