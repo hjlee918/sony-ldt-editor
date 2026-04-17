@@ -84,7 +84,7 @@ Replace the current two-column Projector tab layout with a three-tab layout (Pic
 | Motionflow | 00 | 59 | 0=Off,1=SmoothHi,2=SmoothLo,3=Impulse,4=Combo,5=TrueCinema | ✅ implemented |
 | CS Custom Cyan–Red | 00 | 76 | signed −100 to +100 | ✅ implemented |
 | CS Custom Magenta–Green | 00 | 77 | signed −100 to +100 | ✅ implemented |
-| HDR | 00 | 7c | **Verify values:** existing code has 0=Off,1=On,2=Auto but manual says Off/HDR10/HLG/Auto — confirm against projector before changing | ✅ implemented (values need verification) |
+| HDR | 00 | 7c | 0=Off, 1=HDR10, 2=HLG, 3=Auto | ✅ implemented (fix values: was Off/On/Auto, correct is Off/HDR10/HLG/Auto) |
 | Color Correction R: Hue | 00 | 87 | signed −50 to +50 | known, not yet in UI |
 | Color Correction R: Saturation | 00 | 88 | signed −50 to +50 | known, not yet in UI |
 | Color Correction R: Brightness | 00 | 89 | signed −30 to +30 | known, not yet in UI |
@@ -271,6 +271,16 @@ const ITEM_FIELD = {
 ---
 
 ## Behavior Details
+
+### HDR mode interaction rules
+
+- **Auto**: Projector automatically detects signal metadata and applies appropriate HDR tone mapping (PQ for HDR10, HLG curve for HLG signals). Color Space is forced to BT.2020 automatically. Gamma Correction and Color Space selectors should be shown as read-only/dimmed in the app when HDR = Auto.
+- **HDR10 / HLG**: Manual selection. User can choose Color Space and Gamma Correction (including custom G7–G10 LDT slots) freely.
+- **Off**: Full manual control. Any Gamma slot (including G7–G10 custom LDT) can be selected. Color Space is user-selectable.
+
+The app should reflect these constraints visually: when HDR = Auto, dim the Gamma Correction and Color Space controls with a tooltip explaining they are auto-managed by the projector.
+
+---
 
 ### Unsupported controls
 
