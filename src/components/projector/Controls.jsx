@@ -21,15 +21,18 @@ export function CtrlRow({ label, children, indent = false }) {
 
 export function Slider({ label, value, min, max, onCommit, indent = false }) {
   const [local, setLocal] = useState(value ?? min);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { setLocal(value ?? min); }, [value]);
+  useEffect(() => { setLocal(value ?? min); }, [value, min]);
   return (
     <CtrlRow label={label} indent={indent}>
       <div className="proj-slider-group">
         <input type="range" min={min} max={max} value={local}
           onChange={e => setLocal(Number(e.target.value))}
           onPointerUp={e => onCommit(Number(e.target.value))}
-          onKeyUp={e => onCommit(Number(e.target.value))} />
+          onKeyUp={e => {
+            if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(e.key)) {
+              onCommit(Number(e.target.value));
+            }
+          }} />
         <span className="proj-slider-val">{local}</span>
       </div>
     </CtrlRow>
