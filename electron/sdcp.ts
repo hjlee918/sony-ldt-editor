@@ -301,7 +301,7 @@ export class SdcpConnection extends EventEmitter {
     const filmMode         = await g(0x00, 0x23, 0);   // best-guess
     // ── Expert: Gamma / HDR ──
     const gammaCorrection  = await g(0x00, 0x22, 0);
-    const hdr              = await g(0x00, 0x7c, 3);
+    const hdr              = await g(0x00, 0x7c, 3);   // confirmed item code; 3=Auto default (0=Off,1=HDR10,2=HLG)
     const inputLagReduction = await g(0x00, 0x99, 0);
     const clearWhite       = await g(0x00, 0x28, 0);   // best-guess
     const xvColor          = await g(0x00, 0x29, 0);   // best-guess
