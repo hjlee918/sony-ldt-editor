@@ -40,15 +40,22 @@ export default function App() {
   const [bt1886Lb, setBt1886Lb] = useState(0.005);
   const [smoothPasses, setSmoothPasses] = useState(1);
   const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'projector'
+  const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
   const [editorUploadSlot, setEditorUploadSlot] = useState(10);
   const [downloading, setDownloading] = useState(false);
+  const [tableHeight, setTableHeight] = useState(() =>
+    parseInt(localStorage.getItem('tableHeight') || '200', 10)
+  );
 
   const projector = useProjector();
 
   const lastFreePt = useRef(null);
   const canvasRef = useRef(null);
   const fileRef = useRef(null);
+  const tableResizing = useRef(false);
+  const tableResizeStartY = useRef(0);
+  const tableResizeStartH = useRef(0);
 
   const history = useHistory([initCurve.slice(), initCurve.slice(), initCurve.slice()]);
 
@@ -104,9 +111,25 @@ export default function App() {
 
   const switchMode = (newMode) => {
     setMode(newMode);
-    if (newMode === 'free') return;
-    setControlPts(curveToControlPoints(channels[activeCh], getControlPointPositions(newMode)));
     setActivePointIdx(-1);
+    if (newMode === 'free') return;
+
+    if (mode !== 'free') {
+      // Spline → spline: sample from the ACTUAL current spline (cubicSpline of controlPts),
+      // not from channels. channels may have been set by a generator (e.g. generateGamma) and
+      // not be a natural-cubic-spline output, so sampling it causes first-drag divergence.
+      // Using the spline curve as the reference makes round-trip transitions smooth.
+      const splineCurve = cubicSpline(controlPts);
+      setControlPts(curveToControlPoints(splineCurve, getControlPointPositions(newMode)));
+    } else {
+      // Free → spline: immediately commit the N-point spline approximation to channels.
+      // Without this, channels holds the free-drawn curve but the control points define a
+      // spline, so the first drag causes a jarring snap to the spline shape.
+      const pts = curveToControlPoints(channels[activeCh], getControlPointPositions(newMode));
+      setControlPts(pts);
+      const nc = rebuildFromPts(pts);
+      commitHistory(nc);
+    }
   };
 
   const applyPreset = (fn) => {
@@ -121,7 +144,9 @@ export default function App() {
   // ─── Auto-update ───
   useEffect(() => {
     if (!window.updater) return;
-    return window.updater.onUpdateReady(() => setUpdateReady(true));
+    const unsubAvail = window.updater.onUpdateAvailable(() => setUpdateAvailable(true));
+    const unsubReady = window.updater.onUpdateReady(() => setUpdateReady(true));
+    return () => { unsubAvail?.(); unsubReady?.(); };
   }, []);
 
   // ─── Canvas resize & redraw ───
@@ -165,6 +190,30 @@ export default function App() {
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
   }, [doUndo, doRedo]);
+
+  // ─── Table height resize ───
+  useEffect(() => {
+    localStorage.setItem('tableHeight', String(tableHeight));
+  }, [tableHeight]);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!tableResizing.current) return;
+      const newH = Math.max(80, Math.min(600, tableResizeStartH.current + tableResizeStartY.current - e.clientY));
+      setTableHeight(newH);
+    };
+    const onUp = () => { tableResizing.current = false; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, []);
+
+  const startTableResize = useCallback((e) => {
+    tableResizing.current = true;
+    tableResizeStartY.current = e.clientY;
+    tableResizeStartH.current = tableHeight;
+    e.preventDefault();
+  }, [tableHeight]);
 
   // ─── Mouse → value conversion ───
   const c2v = useCallback((e) => {
@@ -362,6 +411,11 @@ export default function App() {
       <div className="tab-content">
         <div style={{ display: activeTab === 'editor' ? 'contents' : 'none' }}>
     <div className="app">
+      {updateAvailable && !updateReady && (
+        <div className="update-banner update-banner-downloading">
+          Downloading update…
+        </div>
+      )}
       {updateReady && (
         <div className="update-banner" onClick={() => window.updater.installUpdate()}>
           Update ready — click to restart and install
@@ -484,46 +538,53 @@ export default function App() {
             </div>
           </div>
 
-          {/* Control Points Table */}
-          {mode !== 'free' && (
-            <div style={{ background: 'var(--bg2)', borderRadius: 8, border: '1px solid var(--border)', padding: 10, overflow: 'auto', maxHeight: 240, flexShrink: 0 }}>
-              <table className="cp-table">
-                <thead>
-                  <tr>
-                    <th>Input</th>
-                    {linked
-                      ? <th style={{ color: 'var(--accent)' }}>Output</th>
-                      : [0, 1, 2].map(ch => <th key={ch} style={{ color: CHANNEL_COLORS[ch] }}>{CHANNEL_NAMES[ch][0]}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {controlPts.map((pt, i) => (
-                    <tr key={i} style={{ background: activePointIdx === i ? 'rgba(154,123,46,0.06)' : 'transparent' }} onClick={() => setActivePointIdx(i)}>
-                      <td>
-                        <input type="number" className="cp-input" min={0} max={fmtMax()} step={fmtStp()} value={fmtVal(pt.x)}
-                          style={{ color: 'var(--text2)', width: 60 }}
-                          onChange={e => updatePtX(i, parseVal(e.target.value))} />
-                      </td>
+          {/* Control Points Table — always rendered to keep canvas size stable */}
+          <div style={{ background: 'var(--bg2)', borderRadius: 8, border: '1px solid var(--border)', flexShrink: 0, height: tableHeight, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div className="table-resize-handle" onMouseDown={startTableResize} title="Drag to resize table" />
+            {mode !== 'free' ? (
+              <div style={{ flex: 1, overflow: 'auto', padding: '6px 10px 10px' }}>
+                <table className="cp-table">
+                  <thead>
+                    <tr>
+                      <th>Input</th>
                       {linked
-                        ? <td><input type="number" className="cp-input" min={0} max={fmtMax()} step={fmtStp()} value={fmtVal(pt.y)} style={{ color: 'var(--accent)' }} onChange={e => updatePtValue(i, parseVal(e.target.value))} /></td>
-                        : [0, 1, 2].map(ch => (
-                          <td key={ch}>
-                            <input type="number" className="cp-input" min={0} max={fmtMax()} step={fmtStp()}
-                              value={fmtVal(ch === activeCh ? pt.y : channels[ch][pt.x])}
-                              style={{ color: CHANNEL_COLORS[ch] }}
-                              onChange={e => {
-                                const v10 = parseVal(e.target.value);
-                                if (ch === activeCh) updatePtValue(i, v10);
-                                else { const nc = channels.map(c => c.slice()); nc[ch][pt.x] = Math.max(0, Math.min(MAX, v10)); setChannels(nc); commitHistory(nc); }
-                              }} />
-                          </td>
-                        ))}
+                        ? <th style={{ color: 'var(--accent)' }}>Output</th>
+                        : [0, 1, 2].map(ch => <th key={ch} style={{ color: CHANNEL_COLORS[ch] }}>{CHANNEL_NAMES[ch][0]}</th>)}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                  </thead>
+                  <tbody>
+                    {controlPts.map((pt, i) => (
+                      <tr key={i} style={{ background: activePointIdx === i ? 'rgba(154,123,46,0.06)' : 'transparent' }} onClick={() => setActivePointIdx(i)}>
+                        <td>
+                          <input type="number" className="cp-input" min={0} max={fmtMax()} step={fmtStp()} value={fmtVal(pt.x)}
+                            style={{ color: 'var(--text2)', width: 60 }}
+                            onChange={e => updatePtX(i, parseVal(e.target.value))} />
+                        </td>
+                        {linked
+                          ? <td><input type="number" className="cp-input" min={0} max={fmtMax()} step={fmtStp()} value={fmtVal(pt.y)} style={{ color: 'var(--accent)' }} onChange={e => updatePtValue(i, parseVal(e.target.value))} /></td>
+                          : [0, 1, 2].map(ch => (
+                            <td key={ch}>
+                              <input type="number" className="cp-input" min={0} max={fmtMax()} step={fmtStp()}
+                                value={fmtVal(ch === activeCh ? pt.y : channels[ch][pt.x])}
+                                style={{ color: CHANNEL_COLORS[ch] }}
+                                onChange={e => {
+                                  const v10 = parseVal(e.target.value);
+                                  if (ch === activeCh) updatePtValue(i, v10);
+                                  else { const nc = channels.map(c => c.slice()); nc[ch][pt.x] = Math.max(0, Math.min(MAX, v10)); setChannels(nc); commitHistory(nc); }
+                                }} />
+                            </td>
+                          ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text4)', fontSize: 12, fontFamily: 'var(--mono)' }}>
+                Free draw mode — drag on canvas to draw · switch to 4pt / 10pt / 21pt to see control points
+              </div>
+            )}
+          </div>
         </div>
         )}
         right={() => (
