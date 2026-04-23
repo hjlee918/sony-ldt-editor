@@ -408,9 +408,6 @@ export default function App() {
           Projector
         </button>
       </div>
-      <div className="tab-content">
-        <div style={{ display: activeTab === 'editor' ? 'contents' : 'none' }}>
-    <div className="app">
       {updateAvailable && !updateReady && (
         <div className="update-banner update-banner-downloading">
           Downloading update…
@@ -421,6 +418,9 @@ export default function App() {
           Update ready — click to restart and install
         </div>
       )}
+      <div className="tab-content">
+        <div style={{ display: activeTab === 'editor' ? 'contents' : 'none' }}>
+    <div className="app">
       {notif && <div className="notif">{notif}</div>}
       <input ref={fileRef} type="file" accept=".ldt" style={{ display: 'none' }} onChange={doImport} />
 
