@@ -9,6 +9,8 @@
     "build": "electron-vite build",
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:win": "electron-vite build && electron-builder --win",
+    "release:mac": "electron-vite build && electron-builder --mac --publish always",
+    "release:win": "electron-vite build && electron-builder --win --publish always",
     "preview": "electron-vite preview",
     "test": "vitest run"
   },
@@ -58,7 +60,7 @@
     },
     "publish": {
       "provider": "github",
-      "owner": "OWNER",
+      "owner": "hjlee918",
       "repo": "sony-ldt-editor"
     }
   }

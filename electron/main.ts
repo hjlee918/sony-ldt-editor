@@ -1,17 +1,37 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'path';
+import { readFileSync, writeFileSync } from 'fs';
 import { is } from '@electron-toolkit/utils';
 import { autoUpdater } from 'electron-updater';
-import { SdcpConnection } from './sdcp';
+import { AdcpConnection } from './adcp';
 
 let mainWindow: BrowserWindow | null = null;
 let detachedWindow: BrowserWindow | null = null;
-const sdcp = new SdcpConnection();
+const sdcp = new AdcpConnection();
+
+let boundsFile: string;
+
+function loadBounds(): { width: number; height: number; x?: number; y?: number } {
+  try {
+    return JSON.parse(readFileSync(boundsFile, 'utf8'));
+  } catch {
+    return { width: 1280, height: 800 };
+  }
+}
+
+function saveBounds(win: BrowserWindow): void {
+  try {
+    writeFileSync(boundsFile, JSON.stringify(win.getBounds()));
+  } catch { /* ignore */ }
+}
 
 function createWindow(): void {
+  const bounds = loadBounds();
   mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
+    width: bounds.width,
+    height: bounds.height,
+    x: bounds.x,
+    y: bounds.y,
     minWidth: 700,
     minHeight: 500,
     title: 'Sony LDT Editor',
@@ -21,6 +41,8 @@ function createWindow(): void {
       nodeIntegration: false,
     },
   });
+
+  mainWindow.on('close', () => { if (mainWindow) saveBounds(mainWindow); });
 
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
@@ -37,8 +59,8 @@ ipcMain.handle('projector:connect', (_e, ip: string, password?: string) =>
 
 ipcMain.handle('projector:disconnect', () => sdcp.disconnect());
 
-ipcMain.handle('projector:getStatus', () =>
-  sdcp.isConnected() ? sdcp.getStatus() : Promise.resolve({ connected: false }),
+ipcMain.handle('projector:getStatus', (_e, lite?: boolean) =>
+  sdcp.isConnected() ? sdcp.getStatus(lite) : Promise.resolve({ connected: false }),
 );
 
 ipcMain.handle('projector:set', (_e, upper: number, lower: number, value: number) =>
@@ -58,6 +80,14 @@ ipcMain.handle('projector:upload', async (event, slot: number, channels: [number
 
 ipcMain.handle('projector:download', (_e, slot: number) =>
   sdcp.download(slot as 7 | 8 | 9 | 10),
+);
+
+ipcMain.handle('projector:picPos', (_e, action: string, slot: string) =>
+  sdcp.picPos(action as 'sel' | 'save' | 'del', slot),
+);
+
+ipcMain.handle('projector:key', (_e, keyCode: string) =>
+  sdcp.key(keyCode),
 );
 
 // ── IPC: Detached canvas window ─────────────────────────────────────────────
@@ -108,6 +138,7 @@ ipcMain.on('canvas:curve-sync', (event, data) => {
 // ── App lifecycle ───────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
+  boundsFile = join(app.getPath('userData'), 'window-bounds.json');
   createWindow();
   if (!is.dev) {
     autoUpdater.checkForUpdatesAndNotify();

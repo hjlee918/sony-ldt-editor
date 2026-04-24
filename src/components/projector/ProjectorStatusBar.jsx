@@ -6,7 +6,7 @@ function gammaLabel(val) {
   return `${val}`;
 }
 
-export default function ProjectorStatusBar({ status, error, onDisconnect, onUpload, selectedUploadSlot }) {
+export default function ProjectorStatusBar({ status, error, onDisconnect }) {
   if (!status.connected) return null;
   return (
     <div className="projector-status-bar">
@@ -15,9 +15,6 @@ export default function ProjectorStatusBar({ status, error, onDisconnect, onUplo
       <span className="status-info dimmed">Gamma: {gammaLabel(status.gammaCorrection)}</span>
       {error && <span className="status-error">{error}</span>}
       <span style={{ flex: 1 }} />
-      <button className="upload-main-btn" onClick={() => onUpload(selectedUploadSlot)}>
-        ⬆ Upload to {GAMMA_LABELS[selectedUploadSlot] ?? 'Slot'}
-      </button>
       <button className="disconnect-btn" onClick={onDisconnect}>Disconnect</button>
     </div>
   );

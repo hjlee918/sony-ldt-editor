@@ -4,7 +4,7 @@ contextBridge.exposeInMainWorld('projector', {
   connect: (ip: string, password?: string) =>
     ipcRenderer.invoke('projector:connect', ip, password),
   disconnect: () => ipcRenderer.invoke('projector:disconnect'),
-  getStatus: () => ipcRenderer.invoke('projector:getStatus'),
+  getStatus: (lite?: boolean) => ipcRenderer.invoke('projector:getStatus', lite),
   set: (upper: number, lower: number, value: number) =>
     ipcRenderer.invoke('projector:set', upper, lower, value),
   activateSlot: (slot: number) =>
@@ -13,6 +13,10 @@ contextBridge.exposeInMainWorld('projector', {
     ipcRenderer.invoke('projector:upload', slot, channels),
   download: (slot: number) =>
     ipcRenderer.invoke('projector:download', slot),
+  picPos: (action: string, slot: string) =>
+    ipcRenderer.invoke('projector:picPos', action, slot),
+  key: (keyCode: string) =>
+    ipcRenderer.invoke('projector:key', keyCode),
   on: (event: 'upload-progress', cb: (data: unknown) => void): (() => void) => {
     const channel = `projector:${event}`;
     const listener = (_e: Electron.IpcRendererEvent, data: unknown) => cb(data);
