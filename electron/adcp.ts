@@ -571,14 +571,14 @@ export class AdcpConnection extends EventEmitter {
       const csGMagGreen = await this.qNumSigned('col_space_y', 'g');
       const csBMagGreen = await this.qNumSigned('col_space_y', 'b');
 
-      // Color Temp custom Gain/Bias
-      const isCustomCT = colorTemp >= 3 && colorTemp <= 7;
-      const ctGainR = isCustomCT ? await this.qNumDef('coltemp_gain_r', 128) : 128;
-      const ctGainG = isCustomCT ? await this.qNumDef('coltemp_gain_g', 128) : 128;
-      const ctGainB = isCustomCT ? await this.qNumDef('coltemp_gain_b', 128) : 128;
-      const ctBiasR = isCustomCT ? await this.qNumDef('coltemp_bias_r', 128) : 128;
-      const ctBiasG = isCustomCT ? await this.qNumDef('coltemp_bias_g', 128) : 128;
-      const ctBiasB = isCustomCT ? await this.qNumDef('coltemp_bias_b', 128) : 128;
+      // Color Temp Gain/Bias — signed values, range −30 to +30, neutral = 0
+      // Available for all color temp presets (D93/D75/D65/D55 and Custom 1–5)
+      const ctGainR = await this.qNumDef('coltemp_gain_r', 0);
+      const ctGainG = await this.qNumDef('coltemp_gain_g', 0);
+      const ctGainB = await this.qNumDef('coltemp_gain_b', 0);
+      const ctBiasR = await this.qNumDef('coltemp_bias_r', 0);
+      const ctBiasG = await this.qNumDef('coltemp_bias_g', 0);
+      const ctBiasB = await this.qNumDef('coltemp_bias_b', 0);
 
       // Color Correction (signed ADCP values → SDCP unsigned for storage)
       const ccRHue = await this.qNumSigned('col_corr_hue',   'r');

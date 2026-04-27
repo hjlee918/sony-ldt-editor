@@ -251,3 +251,13 @@ npm run build:win     # Windows (requires Wine on Mac, or run on Windows CI)
 - **Phase 3:** Lens control (shift/focus/zoom), 3D settings, SNMP monitoring, auto-discovery via SDAP broadcast
 - **Phase 4:** HTML stripped version with editor features but no projector connectivity
 - Code signing certificate procurement (prerequisite for distribution, handled separately)
+
+---
+
+## 7. Changelog
+
+### v1.0.1 (2026-04-27)
+- **fix**: Color Temp Gain/Bias (R/G/B) sliders now work for all color temperature presets (D93, D75, D65, D55, Custom 1–5)
+- **fix**: Slider range corrected to −30…+30 (signed) with 0 as neutral, per Sony protocol spec (FFE2h–001Eh)
+- **fix**: Default value corrected from 128 to 0 — sending 128 via ADCP caused `err_val` rejection, making controls appear unresponsive
+- **fix**: Gain/Bias section was previously hidden for standard presets (D93/D75/D65/D55); now visible for all color temp modes
